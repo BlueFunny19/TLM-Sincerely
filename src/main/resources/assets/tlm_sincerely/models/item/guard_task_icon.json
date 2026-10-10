@@ -1,0 +1,6 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "tlm_sincerely:item/guard_task_icon"
+  }
+}

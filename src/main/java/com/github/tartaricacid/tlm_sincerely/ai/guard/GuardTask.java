@@ -22,8 +22,10 @@ public class GuardTask extends TaskAttack {
 
     @Override
     public ItemStack getIcon() {
-        // 占位图标（盾牌）；正式图标需要一个带贴图的物品，另行绘制后替换
-        return Items.SHIELD.getDefaultInstance();
+        // 自己的图标物品还没注册好时（理论上不会发生）退回盾牌，免得图标位置是空的
+        return GuardItems.GUARD_TASK_ICON.isPresent()
+                ? new ItemStack(GuardItems.GUARD_TASK_ICON.get())
+                : Items.SHIELD.getDefaultInstance();
     }
 
     @Override

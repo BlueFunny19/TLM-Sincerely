@@ -266,6 +266,7 @@
     "config.tlm_sincerely.reply.pause_seconds.tooltip": "How many seconds a pause marker without its own number holds the next part back (0.3-10)",
     "config.tlm_sincerely.reply.pause_max_total_seconds": "Max total pause per reply (s)",
     "config.tlm_sincerely.reply.pause_max_total_seconds.tooltip": "The most the pauses of one reply may add up to (1-60 seconds); markers beyond it no longer delay the rest",
+    "item.tlm_sincerely.guard_task_icon": "Guard Task Icon",
     "task.tlm_sincerely.guard": "Guard",
     "task.tlm_sincerely.guard.desc": "Protects people from a guard list: the list is ordered by priority and each entry has its own condition (always, or only while their health is below some value).\nWhen nobody on the list needs guarding she is an ordinary melee maid.\nTalk to her to adjust the list, or ask her in chat to guard someone."
 }

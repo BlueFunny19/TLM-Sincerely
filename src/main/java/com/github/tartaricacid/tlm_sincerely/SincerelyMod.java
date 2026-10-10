@@ -1,5 +1,6 @@
 package com.github.tartaricacid.tlm_sincerely;
 
+import com.github.tartaricacid.tlm_sincerely.ai.guard.GuardItems;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
 import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeManager;
 import com.github.tartaricacid.tlm_sincerely.ai.tool.TellMaidTool;
@@ -78,6 +79,7 @@ public class SincerelyMod {
         FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onCommonSetup);
         COMMAND_ARGUMENT_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
         AutoWorkMenus.register(FMLJavaModLoadingContext.get().getModEventBus());
+        GuardItems.register(FMLJavaModLoadingContext.get().getModEventBus());
         if (!configRegistered) {
             configRegistered = true;
             ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, GeneralConfig.init());
