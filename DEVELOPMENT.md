@@ -638,3 +638,11 @@ Remove-Item run\config\tlm_sincerely* -Force
 - **提示词放在已有的系统消息注入点**（`MemoryGuidanceMixin`，与记忆说明、语言指令同处）；`ReplyStylePrompts.of` 在两个开关都关时返回 `null`，不加任何一个字。提示词是我写的、中英各一套，限定"一次回复最多 3 个、不放开头结尾、不代替省略号、只写在聊天文字里"。
 - **局限（已写进 WIKI）**：气泡与语音仍一次性出现，只有聊天行错开；开了语音时聊天行本身由主模组在语音就绪时触发，停顿从那一刻算起；晚显示的行在玩家下线或记忆整理期间丢弃；重启后队列清空。
 - **验证状态**：云端 Gradle 全量构建通过（279 个测试，新增 `ReplyPausesTest` / `DelayedQueueTest` / `PendingReplyPausesTest` / `ReplyStylePromptsTest`）；服务端实测：临时代码里 `new LLMCallback(...)` 后调 `onSuccess(new ResponseChat("…<等待>…<等待 2>…---ttsA<wait>ttsB"))`，聊天与语音正文里的标记都被换成了换行，三个相关混入（`LLMCallbackReplyMarkerMixin` / `MaidChatBroadcastMixin` / `MemoryGuidanceMixin`）都套上了（临时代码已删）。**未做实机验证（需要玩家与真实模型）**：聊天栏里错开显示的实际观感、模型是否真的按提示词分句 / 写标记、与语音同开时的时序。
+
+### 2026-10-11 加班疲劳：话由模型生成，抱怨成为总开关
+
+- **`ai/line/MaidLines`：通用的"请模型按人设说一句话，说不出就说备用台词"**。前缀用 `MaidAIChatManagerAccessor`（撬 `getMessages`，与玩家聊天同构，人设与历史自然带上）+ 一段情景提示词（`LinePrompts`，我写的，中英各一套）；回调 `LineCallback` 继承 `LLMCallback` 但自己收尾（不调父类：不写历史、不播 TTS、不弹思考气泡、失败不给主人发红字），并实现 `SilentCallback`，`LLMCallbackTrackingMixin` 据此不登记它（否则记忆聊天追踪十分钟后必然误报）。
+- **"一定会说"是硬要求**：所有走不通的路（LLM 总开关关、站点不可用、没人设、前缀拼不出、同步出错、回复为空、失败）和 15 秒超时兜底都落到调用方传入的写死台词（`OvertimeText`）；回复与超时只算先到的一个（`AtomicBoolean`）。唯一的例外是“去睡觉”那句迟到而她已经睡着时不再出声。主人额外收到的可本地化提示消息（点心名字）照旧立即发出，所以即使模型很慢，主人也立刻知道她要什么。
+- **抱怨 = 疲劳总开关**：`OvertimeManager.fatigueEnabled()` = 疲劳上限开关 且 抱怨开关；关掉抱怨就不累、不要点心、不去休息、没有休息锁定。原先“只在点心关闭时管抱怨”的语义去掉了。
+- **访问器必须登记进 `tlm_sincerely.mixins.json`**：这次忘了登记，是在真实服务端里调用时被 `IllegalClassLoadError` 当场抓出来的——纯单元测试和编译都看不到，这类混入改动一定要在 `runServer` 里碰一次。访问器方法名带了 `tlmSincerely$` 前缀，避免和 Self Talk 里撬同一个方法的访问器在目标类里重名。
+- **验证状态**：构建通过（291 个测试，新增 `LineTextTest`、`LinePromptsTest`）；服务端里确认访问器套上、没有模型时的回退路径不抛异常。**未验证（需要真实模型）**：生成的话的质量与时延、和语音同开时的表现。

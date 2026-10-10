@@ -2,7 +2,8 @@ package com.github.tartaricacid.tlm_sincerely.ai.overtime;
 
 import com.github.tartaricacid.tlm_sincerely.ai.MaidLookup;
 import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
-import com.github.tartaricacid.tlm_sincerely.ai.move.MaidSpeech;
+import com.github.tartaricacid.tlm_sincerely.ai.line.LinePrompts;
+import com.github.tartaricacid.tlm_sincerely.ai.line.MaidLines;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveOrderNbt;
@@ -364,6 +365,15 @@ public final class OvertimeManager {
 
     // ===== 疲劳：累了 → 吃点心 / 向主人要 / 去休息 =====
 
+    /**
+     * 疲劳是否生效：要同时开着"疲劳上限"和"累了会抱怨"。抱怨优先于要点心——女仆累了总是先开口
+     * （抱怨，或者向主人要点心，二者都是由她的性格生成的一句话），关掉抱怨就等于她不会累：
+     * 不累、不要点心、不会被安排去休息，连带"休息中不能再加班"也不会发生。
+     */
+    public static boolean fatigueEnabled() {
+        return OvertimeConfig.SOFT_CAP_ENABLED.get() && OvertimeConfig.COMPLAIN_ENABLED.get();
+    }
+
     private static void touchFatigue(EntityMaid maid) {
         long now = maid.level().getGameTime();
         OvertimeFatigue fatigue = FATIGUE.computeIfAbsent(maid.getUUID(), id -> new OvertimeFatigue());
@@ -377,7 +387,7 @@ public final class OvertimeManager {
     private static void tickFatigue(MinecraftServer server, ServerLevel level, EntityMaid maid, State state) {
         UUID maidId = maid.getUUID();
         OvertimeFatigue fatigue = FATIGUE.computeIfAbsent(maidId, id -> new OvertimeFatigue());
-        if (!OvertimeConfig.SOFT_CAP_ENABLED.get()) {
+        if (!fatigueEnabled()) {
             // 中途被关掉：别让"正在要点心"的阶段卡住
             fatigue.clearAsking();
             return;
@@ -406,7 +416,7 @@ public final class OvertimeManager {
                 int seconds = takeTreatFromBackpack(maid, table);
                 if (seconds > 0) {
                     fatigue.treat(seconds * 20L);
-                    MaidSpeech.say(maid, OvertimeText.ateOwn(zh, seed));
+                    speak(maid, LinePrompts.Situation.ATE_OWN, fatigue, OvertimeText.ateOwn(zh, seed));
                     LOGGER.info("[overtime] tired, ate a treat from her backpack: maid={} extraSeconds={}",
                             shortId(maidId), seconds);
                     return;
@@ -418,7 +428,7 @@ public final class OvertimeManager {
                 sendToRest(level, maid, state, fatigue, now, zh, seed);
                 return;
             }
-            MaidSpeech.say(maid, OvertimeText.ask(zh, seed));
+            speak(maid, LinePrompts.Situation.TIRED_ASK, fatigue, OvertimeText.ask(zh, seed));
             owner.sendSystemMessage(Component.translatable("chat.tlm_sincerely.overtime.treat_hint",
                     maid.getName(), treatNames(table)).withStyle(ChatFormatting.GRAY));
             MoveNavigation.walkToEntity(maid, owner, TREAT_APPROACH_DISTANCE);
@@ -427,12 +437,19 @@ public final class OvertimeManager {
             return;
         }
         // 点心功能关闭（或点心表是空的）：只抱怨一句，继续干，下次累是再过一个上限之后
-        if (OvertimeConfig.COMPLAIN_ENABLED.get()) {
-            MaidSpeech.say(maid, OvertimeText.complain(zh, seed));
-        }
+        speak(maid, LinePrompts.Situation.TIRED_COMPLAIN, fatigue, OvertimeText.complain(zh, seed));
         fatigue.postpone(capTicks);
-        LOGGER.info("[overtime] tired, complaining only and keeping on: maid={} complained={}",
-                shortId(maidId), OvertimeConfig.COMPLAIN_ENABLED.get());
+        LOGGER.info("[overtime] tired, complaining only and keeping on: maid={}", shortId(maidId));
+    }
+
+    /**
+     * 累了的各种话都经这里说：由模型按人设生成，生成不出来时说备用台词（{@link MaidLines} 保证一定会说）。
+     * 提示词里的"已经熬了多久"取自这只女仆的疲劳计时。
+     */
+    private static void speak(EntityMaid maid, LinePrompts.Situation situation, @Nullable OvertimeFatigue fatigue,
+                              String fallback) {
+        int minutes = fatigue == null ? 1 : (int) Math.max(1L, fatigue.tiredTicks() / 1200L);
+        MaidLines.say(maid, situation, minutes, fallback);
     }
 
     /** 正在向主人要点心：背包里出现了点心就吃，等太久或主人走远了就去休息，否则继续走向主人。 */
@@ -450,7 +467,7 @@ public final class OvertimeManager {
         int seconds = takeTreatFromBackpack(maid, table);
         if (seconds > 0) {
             fatigue.treat(seconds * 20L);
-            MaidSpeech.say(maid, OvertimeText.thanks(zh, seed));
+            speak(maid, LinePrompts.Situation.THANKS, fatigue, OvertimeText.thanks(zh, seed));
             LOGGER.info("[overtime] got a treat in her backpack: maid={} extraSeconds={}", shortId(maidId), seconds);
             return;
         }
@@ -485,7 +502,8 @@ public final class OvertimeManager {
         OvertimeFatigue fatigue = FATIGUE.get(maidId);
         fatigue.treat(seconds * 20L);
         boolean zh = PromptLang.isChinese(PromptLang.of(maid));
-        MaidSpeech.say(maid, OvertimeText.thanks(zh, maid.getId() + maid.level().getGameTime() / TICK_INTERVAL));
+        speak(maid, LinePrompts.Situation.THANKS, fatigue,
+                OvertimeText.thanks(zh, maid.getId() + maid.level().getGameTime() / TICK_INTERVAL));
         LOGGER.info("[overtime] the owner handed her a treat: maid={} item={} extraSeconds={}",
                 shortId(maidId), itemId(stack), seconds);
         return true;
@@ -495,7 +513,7 @@ public final class OvertimeManager {
     private static void sendToRest(ServerLevel level, EntityMaid maid, State state, OvertimeFatigue fatigue,
                                    long now, boolean zh, long seed) {
         UUID maidId = maid.getUUID();
-        MaidSpeech.say(maid, OvertimeText.goRest(zh, seed));
+        speak(maid, LinePrompts.Situation.GO_REST, fatigue, OvertimeText.goRest(zh, seed));
         long restEnds = now + ScheduleTimeline.ticksUntilPhaseChange(state.originalSchedule, level.getDayTime(), AdventureConfig.window());
         LOCKOUT.put(maidId, restEnds);
         fatigue.reset();

@@ -21,7 +21,8 @@
         "ScheduleModeContextMixin",
         "SwitchScheduleToolMixin",
         "AdventureBedTaskMixin",
-        "LLMCallbackReplyMarkerMixin"
+        "LLMCallbackReplyMarkerMixin",
+        "MaidAIChatManagerAccessor"
     ],
     "client": [
         "AbstractMaidContainerGuiMixin",
