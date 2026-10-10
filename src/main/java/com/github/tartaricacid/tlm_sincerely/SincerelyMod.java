@@ -21,6 +21,7 @@ import com.github.tartaricacid.tlm_sincerely.priority.autowork.menu.AutoWorkMenu
 import com.github.tartaricacid.tlm_sincerely.priority.autowork.network.AutoWorkNetworking;
 import com.github.tartaricacid.tlm_sincerely.priority.autowork.network.AutoWorkServerHandler;
 import com.github.tartaricacid.tlm_sincerely.priority.autowork.push.AutoWorkPushService;
+import com.github.tartaricacid.tlm_sincerely.schedule.AdventureSchedule;
 import com.github.tartaricacid.tlm_sincerely.priority.detection.compat.CompatDetectorBootstrap;
 import com.github.tartaricacid.tlm_sincerely.priority.TaskAutoSwitchHandler;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
@@ -89,6 +90,8 @@ public class SincerelyMod {
         AutoWorkNetworking.register();
         CompatDetectorBootstrap.register();
         MaidFileManagerBridge.register();
+        // 启动时就解析一次冒险日程的枚举值：混入有没有生效，日志里一眼能看到
+        AdventureSchedule.value();
     }
 
     @SubscribeEvent

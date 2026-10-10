@@ -71,6 +71,7 @@ tlm_sincerely/
 │   └── subconfig/
 ├── memory/
 ├── mixin/
+├── schedule/
 └── priority/
     ├── autowork/
     │   ├── compat/
@@ -426,6 +427,27 @@ tlm_sincerely/
 - **守护设置的攻击目标在指令结束后不会主动清除**：与主模组“切换任务并指定攻击目标”的语义一致，之后是否继续攻击由女仆自己的战斗 AI 决定。
 - **`go_home` 依赖 TLM 的“工作坐标”**：判定的是日程坐标 `SchedulePos.isConfigured()` / `getWorkPos()`（`EntityMaid#hasRestriction()` 在 TLM 里被覆写成 `isHomeModeEnable()`，`getRestrictRadius()` 的默认值是 `MAID_NON_HOME_RANGE` 而不是 -1，两者都不能用来判断“有没有工作坐标”）。`go_home` 只在**当前维度**传送，目标附近 ±4 格内找不到能站的位置就放弃且不改变状态。
 - **限时指令的“剩余时间”与运行状态只在服务端内存**，跨重启靠女仆实体上的 `tlm_sincerely:move_order` 标签恢复；给模型看的“当前指令”栏目由 `ai/context/MaidMoveContext`（栏目标题「当前的移动指令」）提供。`MoveMaxActivePerOwner` 只是同一主人同时生效条数的上限，不是速率限制。
+
+### 7. 冒险日程（给主模组的日程枚举追加第四个值 `ADVENTURE`）
+
+- **是什么**：TLM 的 `MaidSchedule` 原来只有 `DAY`（白班）/ `NIGHT`（夜班）/ `ALL`（全天）。本模组在类初始化时给它追加第四个值 `ADVENTURE`（`MaidScheduleEnumMixin`，用构造器访问器造新值、替换 `$VALUES`）：几乎全天 `WORK`，只在睡眠窗口里 `REST`，**没有 `IDLE`**。默认窗口从 tick 17000（23:00）开始、长 4000 tick（到次日 03:00）；窗口可以跨过一天的结尾。时间表由 `schedule/AdventureWindow`（纯逻辑，有单测）生成，`AdventureSchedule.timetable()` 把它转成原版 `Schedule`（配置变了就重建，女仆下次刷新大脑时换上）。
+- **为什么要一串混入**：主模组里有好几处对日程做 `switch`，对认不出的值会走默认分支（多数是当成白班，有一处直接抛 `IncompatibleClassChangeError`），所以逐处补齐：
+  - `MaidBrainScheduleMixin`：`MaidBrain.registerSchedule` 对冒险女仆换上自己的时间表；
+  - `EntityMaidScheduleMixin`：`getScheduleDetail()`（"此刻该做什么"，切换工作任务、工作坐标、当前活动上下文、界面提示都经过它）按冒险时间表回答；
+  - `ScheduleModeContextMixin`：给模型的"当前日程"上下文原本遇到未知值会抛错，这里补上文字并说明含义；
+  - `SwitchScheduleToolMixin`：`switch_schedule` 工具说明末尾补一句 `ADVENTURE` 的含义，聊天里的调用摘要改成"切换日程为冒险"；
+  - `ScheduleButtonMixin`（仅客户端）：女仆界面的日程按钮为冒险画自己的图标（`textures/gui/schedule_adventure.png`，由主模组的"全天"图标改色加一把小剑）并显示冒险的时间表提示；
+  - `AdventureBedTaskMixin`：`MaidBedTask.findBed` 在主模组没找到女仆床时，为冒险女仆在原版床（POI `HOME`）里找最近一张没人睡的床；`start` 里让她对原版床 `startSleeping`（原版会把床标成有人、醒来时放开）。女仆床始终优先。
+  所有注入都是 `require = 0`：主模组改了内部结构只会让冒险日程退化（被当成白班），不会让游戏启动失败。编译期代码引用不到 `ADVENTURE`，运行期一律经 `AdventureSchedule.value()` / `is()`；混入没有生效时它返回 `null`，冒险逻辑自动不触发。
+- **与加班的关系**：`ScheduleTimeline` 认识 `ADVENTURE`（按配置的窗口），冒险女仆在睡眠窗口里被安排加班同样会累积疲劳；加班结束时按名字写回 `ADVENTURE`。
+- **卸载风险**：日程是按名字（`MaidScheduleMode`）存进女仆存档的，主模组读档时用 `MaidSchedule.valueOf` 且没有兜底。有女仆处于冒险日程时卸载本模组，加载这只女仆会出错——README 里有 `[!WARNING]` 提示，卸载前要把所有女仆切回原来的三种日程。
+- **配置段 `[adventure]`**：
+
+| 配置项 | 默认值 | 说明 |
+|---|---|---|
+| `AdventureSleepStartTick` | `17000` | 每天从哪个 tick 开始睡（0 = 06:00，18000 = 00:00），0~23999，窗口可跨天 |
+| `AdventureSleepDurationTicks` | `4000` | 睡多久（1000 tick = 1 小时），1000~20000；其余时间都在工作 |
+| `AdventureVanillaBeds` | `true` | 附近没有女仆床时，冒险女仆是否睡原版的床（从不睡有人的床，始终优先女仆床） |
 
 ---
 

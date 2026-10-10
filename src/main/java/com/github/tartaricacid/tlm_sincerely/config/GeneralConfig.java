@@ -1,5 +1,6 @@
 package com.github.tartaricacid.tlm_sincerely.config;
 
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.AdventureConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.ChatBarConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MaidCommandConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MemoryConfig;
@@ -21,6 +22,7 @@ public final class GeneralConfig {
         RelayConfig.init(builder);
         MoveConfig.init(builder);
         OvertimeConfig.init(builder);
+        AdventureConfig.init(builder);
         CONFIG = builder.build();
         return CONFIG;
     }

@@ -621,3 +621,11 @@ Remove-Item run\config\tlm_sincerely* -Force
 - **去休息时取消手头的指令**：`sendToRest` 调 `MoveDirectiveManager.cancelAndRestore`，让指令占着的暂停跟随、加班一并恢复，再对剩下的加班状态做一次强制收尾。这是临时选择，已记入“待用户决定”。
 - **要点心期间移动指令暂停下发**（`MoveDirectiveManager.step` 里 `OvertimeManager.isAsking`），否则每 10 tick 重下 `WALK_TARGET` 会和“走向主人”互相拉扯。
 - **验证状态**：云端 Gradle 全量构建通过（229 个测试）；新增 `OvertimeFatigueTest`、`TreatTableTest`，并给 `ScheduleTimelineTest` 加了 `ticksUntilPhaseChange`。**未做实机验证**：右键递点心是否被主模组的交互抢先处理、`walkToEntity` 走向主人的效果、取消指令后的状态恢复。
+
+### 2026-10-10 冒险日程 T6：给主模组的日程枚举追加第四个值
+
+- **选方案 A（真的往 `MaidSchedule` 里加一个枚举值）**：界面按钮、`switch_schedule` 工具、存档、网络同步都直接认它，代价是要对主模组里所有对日程做 `switch` 的地方逐处补齐（读字节码查出来的清单见 WIKI 「7. 冒险日程」），并且有卸载风险（日程按名字存档，`valueOf` 无兜底，README 有警告）。
+- **枚举扩展的做法**：`MaidScheduleEnumMixin` 在 `<clinit>` 里 `$VALUES` 赋值之后用 `@Invoker("<init>")` 造新值、换数组。运行期统一经 `AdventureSchedule.value()` 取，混入没生效就是 `null`，所有冒险逻辑自动不触发；启动时（`FMLCommonSetupEvent`）解析一次并写一行 INFO 日志，是否生效一眼能看到。
+- **时间表是纯逻辑**：`AdventureWindow`（起点、时长、跨天窗口、分段、时间文字）有单测；`AdventureSchedule.timetable()` 把分段转成原版 `Schedule`，配置变了就重建。`ScheduleTimeline` 也认 `ADVENTURE`，加班疲劳对冒险女仆同样成立。
+- **在真实服务端验证过混入**（这次第一次做，以后改混入都建议这样）：`sh gradlew runServer --no-daemon`（先在 `run/eula.txt` 写 `eula=true`；`run/` 已被 `.gitignore`）。临时加一个 `ServerStartedEvent` 监听，在里面 `new EntityMaid(level)`、设日程、读 `getScheduleDetail()`、`brain.updateActivityFromSchedule` 后看 `isActive`、存读 NBT、放一张原版床后反射调 `MaidBedTask.findBed/start`；全部符合预期后删掉这段临时代码。日志里 `Mixing XxxMixin ... into ...` 的 DEBUG 行能确认某个混入有没有套上（目标类被加载时才会出现）。注意 `pkill -f` 的模式要写成 `[f]orgeserveruserdev` 这种，否则会杀掉自己所在的 shell。
+- **验证状态**：云端 Gradle 全量构建通过；服务端实测——枚举为 `[DAY, NIGHT, ALL, ADVENTURE]`，各时刻 `getScheduleDetail()`（0/5000/16999 工作、17000/20999 休息、21000/23999 工作）与大脑活动一致，存读档后仍是 `ADVENTURE`，`findBed` 对冒险女仆找到了原版床、对白班女仆返回 `null`，`start` 后女仆处于睡眠、床被标成有人；`SwitchWorkTaskToolMixin`（T5a）也在这次启动里确认套上。**未做实机验证（需要客户端）**：日程按钮的图标与提示（`ScheduleButtonMixin`）、`ScheduleModeContextMixin` 在真实对话里的文字、女仆真的走到原版床前躺下、天亮后起床。

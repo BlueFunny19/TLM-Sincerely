@@ -245,5 +245,16 @@
     "config.tlm_sincerely.overtime.eat_own_treats.tooltip": "When tired, if her own backpack holds an item from the treat list she eats it right away instead of asking",
     "config.tlm_sincerely.overtime.treat_wait_seconds": "Treat wait time (s)",
     "config.tlm_sincerely.overtime.treat_wait_seconds.tooltip": "How long a tired maid waits for a treat before she gives up and goes to rest (seconds, 10-600)",
-    "chat.tlm_sincerely.overtime.treat_hint": "%s is tired and would like a treat (right-click her with one, or put it in her backpack): %s"
+    "chat.tlm_sincerely.overtime.treat_hint": "%s is tired and would like a treat (right-click her with one, or put it in her backpack): %s",
+    "gui.tlm_sincerely.schedule.adventure": "Adventure",
+    "gui.tlm_sincerely.schedule.adventure.work": "Work",
+    "gui.tlm_sincerely.schedule.adventure.rest": "Sleep",
+    "ai.tlm_sincerely.chat.tool_call.switch_schedule.adventure": "Switch Schedule to Adventure",
+    "config.tlm_sincerely.adventure": "Adventure schedule",
+    "config.tlm_sincerely.adventure.sleep_start_tick": "Sleep start (tick)",
+    "config.tlm_sincerely.adventure.sleep_start_tick.tooltip": "The tick of the day at which the adventure schedule starts sleeping (0 = 06:00, 6000 = 12:00, 12000 = 18:00, 18000 = 00:00; the default 17000 is 23:00). The window may run past the end of the day. Changes apply the next time a maid refreshes her brain (switching schedule, re-entering the world)",
+    "config.tlm_sincerely.adventure.sleep_duration_ticks": "Sleep length (ticks)",
+    "config.tlm_sincerely.adventure.sleep_duration_ticks.tooltip": "How long the adventure schedule sleeps each day (1000 ticks = one hour, default 4000 = four hours, range 1000-20000). The rest of the day she works; there is no leisure time",
+    "config.tlm_sincerely.adventure.vanilla_beds": "Adventure schedule uses vanilla beds",
+    "config.tlm_sincerely.adventure.vanilla_beds.tooltip": "When there is no maid bed nearby, a maid on the adventure schedule sleeps in the nearest unoccupied vanilla bed; a maid bed is always preferred when there is one"
 }

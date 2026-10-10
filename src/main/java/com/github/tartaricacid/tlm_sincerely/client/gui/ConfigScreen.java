@@ -4,7 +4,9 @@ import com.github.tartaricacid.tlm_sincerely.config.subconfig.ChatBarConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MaidCommandConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MemoryConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.AdventureConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.OvertimeConfig;
+import com.github.tartaricacid.tlm_sincerely.schedule.AdventureWindow;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.PriorityConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.RelayConfig;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
@@ -685,6 +687,40 @@ public final class ConfigScreen {
                 .build());
 
         addon.addEntry(overtime.build());
+
+        SubCategoryBuilder adventure = entryBuilder.startSubCategory(
+                Component.translatable("config.tlm_sincerely.adventure"));
+        adventure.setExpanded(true);
+
+        adventure.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.adventure.sleep_start_tick"),
+                        AdventureConfig.SLEEP_START_TICK.get())
+                .setDefaultValue(AdventureWindow.DEFAULT.startTick())
+                .setMin(0)
+                .setMax(23999)
+                .setTooltip(Component.translatable("config.tlm_sincerely.adventure.sleep_start_tick.tooltip"))
+                .setSaveConsumer(AdventureConfig.SLEEP_START_TICK::set)
+                .build());
+
+        adventure.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.adventure.sleep_duration_ticks"),
+                        AdventureConfig.SLEEP_DURATION_TICKS.get())
+                .setDefaultValue(AdventureWindow.DEFAULT.durationTicks())
+                .setMin(1000)
+                .setMax(20000)
+                .setTooltip(Component.translatable("config.tlm_sincerely.adventure.sleep_duration_ticks.tooltip"))
+                .setSaveConsumer(AdventureConfig.SLEEP_DURATION_TICKS::set)
+                .build());
+
+        adventure.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.adventure.vanilla_beds"),
+                        AdventureConfig.VANILLA_BEDS.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.adventure.vanilla_beds.tooltip"))
+                .setSaveConsumer(AdventureConfig.VANILLA_BEDS::set)
+                .build());
+
+        addon.addEntry(adventure.build());
     }
 
     public static void register() {

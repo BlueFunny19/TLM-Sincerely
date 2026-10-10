@@ -14,11 +14,18 @@
         "CommandConfirmationChatGuardMixin",
         "ChatBubbleSilenceMixin",
         "TtsSilenceMixin",
-        "SwitchWorkTaskToolMixin"
+        "SwitchWorkTaskToolMixin",
+        "MaidScheduleEnumMixin",
+        "MaidBrainScheduleMixin",
+        "EntityMaidScheduleMixin",
+        "ScheduleModeContextMixin",
+        "SwitchScheduleToolMixin",
+        "AdventureBedTaskMixin"
     ],
     "client": [
         "AbstractMaidContainerGuiMixin",
-        "MaidTabsMixin"
+        "MaidTabsMixin",
+        "ScheduleButtonMixin"
     ],
     "injectors": {
         "defaultRequire": 1

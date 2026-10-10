@@ -245,5 +245,16 @@
     "config.tlm_sincerely.overtime.eat_own_treats.tooltip": "累了时如果她自己的背包里有点心表里的物品，直接吃掉，不再向主人要",
     "config.tlm_sincerely.overtime.treat_wait_seconds": "要点心的等待时长（秒）",
     "config.tlm_sincerely.overtime.treat_wait_seconds.tooltip": "女仆累了向主人要点心后最多等多久（秒，10-600），没要到就去休息",
-    "chat.tlm_sincerely.overtime.treat_hint": "%s 累了，想要一点点心（右键递给她，或放进她的背包）：%s"
+    "chat.tlm_sincerely.overtime.treat_hint": "%s 累了，想要一点点心（右键递给她，或放进她的背包）：%s",
+    "gui.tlm_sincerely.schedule.adventure": "冒险",
+    "gui.tlm_sincerely.schedule.adventure.work": "工作",
+    "gui.tlm_sincerely.schedule.adventure.rest": "睡觉",
+    "ai.tlm_sincerely.chat.tool_call.switch_schedule.adventure": "切换日程为冒险",
+    "config.tlm_sincerely.adventure": "冒险日程",
+    "config.tlm_sincerely.adventure.sleep_start_tick": "睡眠开始时刻（tick）",
+    "config.tlm_sincerely.adventure.sleep_start_tick.tooltip": "冒险日程每天从哪个 tick 开始睡觉（0 = 06:00，6000 = 12:00，12000 = 18:00，18000 = 00:00；默认 17000 即 23:00）。窗口可以跨过一天的结尾。修改后在女仆下一次刷新大脑（切换日程、重新进入世界）时生效",
+    "config.tlm_sincerely.adventure.sleep_duration_ticks": "睡眠时长（tick）",
+    "config.tlm_sincerely.adventure.sleep_duration_ticks.tooltip": "冒险日程每天睡多久（1000 tick = 1 小时，默认 4000 即 4 小时，范围 1000~20000）。其余时间都在工作，没有休闲时段",
+    "config.tlm_sincerely.adventure.vanilla_beds": "冒险日程可睡原版的床",
+    "config.tlm_sincerely.adventure.vanilla_beds.tooltip": "附近没有女仆床时，冒险日程的女仆会去睡最近的一张没人睡的原版床；有女仆床时始终优先女仆床"
 }

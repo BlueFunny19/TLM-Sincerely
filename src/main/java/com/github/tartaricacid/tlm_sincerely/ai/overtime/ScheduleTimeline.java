@@ -1,5 +1,6 @@
 package com.github.tartaricacid.tlm_sincerely.ai.overtime;
 
+import com.github.tartaricacid.tlm_sincerely.schedule.AdventureWindow;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -10,7 +11,8 @@ import org.jetbrains.annotations.Nullable;
  * <ul>
  *   <li>{@code DAY}（白班）：0 起工作，12000 起休闲，16000 起休息；</li>
  *   <li>{@code NIGHT}（夜班）：0 起休息，8000 起休闲，12000 起工作；</li>
- *   <li>{@code ALL}（全天）：一直工作。</li>
+ *   <li>{@code ALL}（全天）：一直工作；</li>
+ *   <li>{@code ADVENTURE}（冒险，本 mod 加的）：几乎全天工作，只在 {@link AdventureWindow} 里休息，没有休闲时段。</li>
  * </ul>
  * 用来回答"如果她没有在加班，这个时刻本来应该是什么状态"——加班的疲劳只在本来该休息的时段累积。
  */
@@ -31,12 +33,21 @@ public final class ScheduleTimeline {
         REST
     }
 
+    /** 同 {@link #phaseAt(String, long, AdventureWindow)}，冒险日程按默认睡眠窗口算。 */
+    public static Phase phaseAt(@Nullable String scheduleName, long dayTime) {
+        return phaseAt(scheduleName, dayTime, AdventureWindow.DEFAULT);
+    }
+
     /**
      * @param scheduleName 日程枚举名（{@code MaidSchedule#name()}）；{@code null} 或认不出的名字按全天工作处理
      * @param dayTime      世界时间（{@code Level#getDayTime()}），可以超过 24000
+     * @param adventure    冒险日程的睡眠窗口（配置里可改）；只有 {@code ADVENTURE} 用到它
      */
-    public static Phase phaseAt(@Nullable String scheduleName, long dayTime) {
+    public static Phase phaseAt(@Nullable String scheduleName, long dayTime, AdventureWindow adventure) {
         int time = (int) Math.floorMod(dayTime, (long) DAY_LENGTH);
+        if ("ADVENTURE".equals(scheduleName)) {
+            return adventure.isRest(time) ? Phase.REST : Phase.WORK;
+        }
         if ("DAY".equals(scheduleName)) {
             if (time < 12000) {
                 return Phase.WORK;
@@ -57,9 +68,14 @@ public final class ScheduleTimeline {
      * 用来算"这段休息时间什么时候结束"。
      */
     public static long ticksUntilPhaseChange(@Nullable String scheduleName, long dayTime) {
-        Phase current = phaseAt(scheduleName, dayTime);
+        return ticksUntilPhaseChange(scheduleName, dayTime, AdventureWindow.DEFAULT);
+    }
+
+    /** 同上，冒险日程使用给定的睡眠窗口。 */
+    public static long ticksUntilPhaseChange(@Nullable String scheduleName, long dayTime, AdventureWindow adventure) {
+        Phase current = phaseAt(scheduleName, dayTime, adventure);
         for (int step = 1; step <= DAY_LENGTH; step++) {
-            if (phaseAt(scheduleName, dayTime + step) != current) {
+            if (phaseAt(scheduleName, dayTime + step, adventure) != current) {
                 return step;
             }
         }

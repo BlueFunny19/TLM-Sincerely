@@ -118,6 +118,15 @@
 - 指令与暂停状态存在女仆自己的数据里，服务器重启后会继续生效或自动恢复；你在界面里手动改了模式，指令会自动终止，不会覆盖你的修改。
 - 相关配置在 `move` 分组与配置界面里：`MoveEnabled`、`MoveDefaultDurationSeconds`、`MoveMaxDurationSeconds`、`MoveMaxActivePerOwner`、`MoveAllowPermanent`、`MovePermanentReminderMinutes`、`MoveForceWorkSchedule`、`MoveTeleportFallback`、`MoveTeleportMaxDistance`；加班在 `overtime` 分组：`OvertimeTaskSwitchEnabled`、`OvertimeTaskHoldSeconds`。
 
+### 冒险日程（改版新增）
+
+- 女仆界面里的日程按钮多了第四档"冒险"（白班 → 夜班 → 全天 → 冒险 → 白班）：几乎全天工作，没有休闲时段，只在每天一小段时间里睡觉（默认 23:00 到次日 03:00，可在 `adventure` 分组里改 `AdventureSleepStartTick` 与 `AdventureSleepDurationTicks`）。适合带着女仆长途冒险。
+- 主模组的 `switch_schedule` 工具也能让模型切到冒险日程，给模型看的"当前日程"上下文里会说明它的含义。
+- 冒险日程的女仆附近没有女仆床时，会去睡最近的一张没人睡的原版床（`AdventureVanillaBeds`，默认开）；有女仆床时始终优先女仆床。
+
+> [!WARNING]
+> 日程是按名字存进女仆存档里的。**如果有女仆正处于冒险日程，不要卸载本模组**：卸载后主模组读取这只女仆时会因为认不出 `ADVENTURE` 这个名字而出错。卸载前请先在游戏里把所有女仆的日程切回白班 / 夜班 / 全天。
+
 ### 女仆转告（改版新增，需搭配改版 Self Talk）
 
 - 女仆的 AI 可以调用 `tell_maid` 工具，把一句话转告给同一主人名下的另一只女仆，对方通过 Self Talk 的互聊流程回应；成功后向主人和附近玩家显示一行 `<女仆甲 -> 女仆乙> 内容`。

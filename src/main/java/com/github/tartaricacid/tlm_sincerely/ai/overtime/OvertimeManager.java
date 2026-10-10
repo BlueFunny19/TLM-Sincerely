@@ -7,6 +7,7 @@ import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveOrderNbt;
 import com.github.tartaricacid.tlm_sincerely.chatbar.MaidFinder;
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.AdventureConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.OvertimeConfig;
 import com.github.tartaricacid.touhoulittlemaid.entity.ai.brain.MaidSchedule;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
@@ -334,7 +335,7 @@ public final class OvertimeManager {
         long deadline = level.getGameTime() + OvertimeConfig.TASK_HOLD_SECONDS.get() * 20L;
         State state = STATES.get(maidId);
         if (state != null) {
-            if (ScheduleTimeline.phaseAt(state.originalSchedule, level.getDayTime()) != ScheduleTimeline.Phase.WORK) {
+            if (ScheduleTimeline.phaseAt(state.originalSchedule, level.getDayTime(), AdventureConfig.window()) != ScheduleTimeline.Phase.WORK) {
                 state.holders.add(OvertimeHolder.WORK_TASK);
                 state.taskDeadlineGameTick = deadline;
                 persist(maid, state);
@@ -387,7 +388,7 @@ public final class OvertimeManager {
             tickAsking(server, level, maid, state, fatigue, now, capTicks);
             return;
         }
-        boolean rest = ScheduleTimeline.phaseAt(state.originalSchedule, level.getDayTime()) == ScheduleTimeline.Phase.REST;
+        boolean rest = ScheduleTimeline.phaseAt(state.originalSchedule, level.getDayTime(), AdventureConfig.window()) == ScheduleTimeline.Phase.REST;
         if (fatigue.advance(now, TICK_INTERVAL, rest, capTicks) == OvertimeFatigue.Event.BECAME_TIRED) {
             onTired(server, level, maid, state, fatigue, now, capTicks);
         }
@@ -495,7 +496,7 @@ public final class OvertimeManager {
                                    long now, boolean zh, long seed) {
         UUID maidId = maid.getUUID();
         MaidSpeech.say(maid, OvertimeText.goRest(zh, seed));
-        long restEnds = now + ScheduleTimeline.ticksUntilPhaseChange(state.originalSchedule, level.getDayTime());
+        long restEnds = now + ScheduleTimeline.ticksUntilPhaseChange(state.originalSchedule, level.getDayTime(), AdventureConfig.window());
         LOCKOUT.put(maidId, restEnds);
         fatigue.reset();
         // 手头的指令也一起取消：释放指令占着的那份加班，并恢复暂停跟随之类的状态

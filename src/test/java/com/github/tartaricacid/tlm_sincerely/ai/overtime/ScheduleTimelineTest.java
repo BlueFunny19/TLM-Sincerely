@@ -1,9 +1,11 @@
 package com.github.tartaricacid.tlm_sincerely.ai.overtime;
 
 import com.github.tartaricacid.tlm_sincerely.ai.overtime.ScheduleTimeline.Phase;
+import com.github.tartaricacid.tlm_sincerely.schedule.AdventureWindow;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * {@link ScheduleTimeline} 的单元测试：三种日程在各个关键帧边界上的时段。
@@ -71,6 +73,38 @@ class ScheduleTimelineTest {
     void ticksUntilPhaseChange_allDayWorkNeverChanges() {
         assertEquals(24000L, ScheduleTimeline.ticksUntilPhaseChange("ALL", 5000));
         assertEquals(24000L, ScheduleTimeline.ticksUntilPhaseChange(null, 5000));
+    }
+
+    @Test
+    void adventureSchedule_worksAlmostAllDayAndRestsInTheWindow() {
+        AdventureWindow window = new AdventureWindow(17000, 4000);
+        assertEquals(Phase.WORK, ScheduleTimeline.phaseAt("ADVENTURE", 0, window));
+        assertEquals(Phase.WORK, ScheduleTimeline.phaseAt("ADVENTURE", 16999, window));
+        assertEquals(Phase.REST, ScheduleTimeline.phaseAt("ADVENTURE", 17000, window));
+        assertEquals(Phase.REST, ScheduleTimeline.phaseAt("ADVENTURE", 20999, window));
+        assertEquals(Phase.WORK, ScheduleTimeline.phaseAt("ADVENTURE", 21000, window));
+    }
+
+    @Test
+    void adventureSchedule_twoArgumentFormUsesTheDefaultWindow() {
+        assertEquals(Phase.REST, ScheduleTimeline.phaseAt("ADVENTURE", 18000));
+        assertEquals(Phase.WORK, ScheduleTimeline.phaseAt("ADVENTURE", 5000));
+    }
+
+    @Test
+    void adventureSchedule_hasNoIdlePhase() {
+        AdventureWindow window = new AdventureWindow(22000, 4000);
+        for (int tick = 0; tick < 24000; tick += 250) {
+            assertNotEquals(Phase.IDLE, ScheduleTimeline.phaseAt("ADVENTURE", tick, window));
+        }
+    }
+
+    @Test
+    void adventureSchedule_ticksUntilPhaseChange() {
+        AdventureWindow window = new AdventureWindow(17000, 4000);
+        assertEquals(3000L, ScheduleTimeline.ticksUntilPhaseChange("ADVENTURE", 18000, window));
+        assertEquals(1L, ScheduleTimeline.ticksUntilPhaseChange("ADVENTURE", 16999, window));
+        assertEquals(17000L, ScheduleTimeline.ticksUntilPhaseChange("ADVENTURE", 0, window));
     }
 
     @Test
