@@ -377,6 +377,14 @@ public final class MemoryCommand {
         }
 
         String maidName = maid.getName().getString();
+        // 睡着的女仆不整理：这条请求经 chat() 发出，会被 Self Talk 的「叫不醒」当成一次叫她而取消，
+        // 命令却照样回复"已发送"。直接如实告诉玩家，等她醒来再来。
+        if (maid.isSleeping()) {
+            player.sendSystemMessage(Component.translatable(
+                    "command.tlm_sincerely.memory.summarize_sleeping", maidName)
+                    .withStyle(ChatFormatting.YELLOW));
+            return 0;
+        }
         // 对话语言取玩家的客户端语言（与主 Mod 聊天界面一致），不能用女仆的 TTS 语言
         String language = player.getLanguage();
         if (language == null || language.isEmpty()) {

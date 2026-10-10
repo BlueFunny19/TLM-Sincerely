@@ -104,6 +104,7 @@
     "command.tlm_sincerely.memory.save_failed": "Memory save failed. Please try again later.",
     "command.tlm_sincerely.memory.maintenance_busy": "%s is busy maintaining memories. Please try again later.",
     "command.tlm_sincerely.memory.summarize_sent": "Asked %s to review conversation and record important info",
+    "command.tlm_sincerely.memory.summarize_sleeping": "%s is asleep; try again after she wakes up",
     "config.tlm_sincerely.multi_task.reverse_switch_window": "Reverse Switch Window",
     "config.tlm_sincerely.multi_task.reverse_switch_window.tooltip": "Time window used to count normal A-to-B-to-A reversals (ticks)",
     "config.tlm_sincerely.multi_task.reverse_switch_threshold": "Reverse Switch Threshold",

@@ -154,7 +154,10 @@ public final class MemoryMaintenanceManager {
                 if (maid != null) {
                     MemoryChatTracker.reconcilePendingSubmission(uuid,
                             maid.getAiChatManager().historySummaryRunning);
-                    if (MemoryChatTracker.hasOrdinaryInFlight(uuid)) {
+                    // 睡着的女仆先不整理：整理对话也经 chat() 以主人身份发起，Self Talk 的「叫不醒」
+                    // 无法把它和玩家叫醒区分开，会把它算成一次叫她（可能被取消，也可能真把她叫醒）。
+                    // 沿用"放回队列、下一秒再看"的写法，等她醒来再整理，不丢整理。
+                    if (maid.isSleeping() || MemoryChatTracker.hasOrdinaryInFlight(uuid)) {
                         pendingTidy.add(uuid);
                     } else {
                         startTidy(maid);

@@ -104,6 +104,7 @@
     "command.tlm_sincerely.memory.save_failed": "记忆保存失败，请稍后重试。",
     "command.tlm_sincerely.memory.maintenance_busy": "%s 正在整理记忆，请稍后再试。",
     "command.tlm_sincerely.memory.summarize_sent": "已请求 %s 回顾对话并记录重要信息",
+    "command.tlm_sincerely.memory.summarize_sleeping": "%s 正在睡觉，等她醒来再整理吧",
     "config.tlm_sincerely.multi_task.reverse_switch_window": "反向切换检测窗口",
     "config.tlm_sincerely.multi_task.reverse_switch_window.tooltip": "统计普通任务对 A→B→A 反向切换的时间窗口（tick）",
     "config.tlm_sincerely.multi_task.reverse_switch_threshold": "反向切换阈值",
