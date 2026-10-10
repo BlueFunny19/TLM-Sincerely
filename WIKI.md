@@ -436,7 +436,7 @@ tlm_sincerely/
   - `EntityMaidScheduleMixin`：`getScheduleDetail()`（"此刻该做什么"，切换工作任务、工作坐标、当前活动上下文、界面提示都经过它）按冒险时间表回答；
   - `ScheduleModeContextMixin`：给模型的"当前日程"上下文原本遇到未知值会抛错，这里补上文字并说明含义；
   - `SwitchScheduleToolMixin`：`switch_schedule` 工具说明末尾补一句 `ADVENTURE` 的含义，聊天里的调用摘要改成"切换日程为冒险"；
-  - `ScheduleButtonMixin`（仅客户端）：女仆界面的日程按钮为冒险画自己的图标（`textures/gui/schedule_adventure.png`，由主模组的"全天"图标改色加一把小剑）并显示冒险的时间表提示；
+  - `ScheduleButtonMixin`（仅客户端）：女仆界面的日程按钮为冒险画自己的图标（`textures/gui/schedule_adventure.png`，就是主模组的"全天"图标，正中间加了一顶小帐篷）并显示冒险的时间表提示；
   - `AdventureBedTaskMixin`：`MaidBedTask.findBed` 在主模组没找到女仆床时，为冒险女仆在原版床（POI `HOME`）里找最近一张没人睡的床；`start` 里让她对原版床 `startSleeping`（原版会把床标成有人、醒来时放开）。女仆床始终优先。
   所有注入都是 `require = 0`：主模组改了内部结构只会让冒险日程退化（被当成白班），不会让游戏启动失败。编译期代码引用不到 `ADVENTURE`，运行期一律经 `AdventureSchedule.value()` / `is()`；混入没有生效时它返回 `null`，冒险逻辑自动不触发。
 - **与加班的关系**：`ScheduleTimeline` 认识 `ADVENTURE`（按配置的窗口），冒险女仆在睡眠窗口里被安排加班同样会累积疲劳；加班结束时按名字写回 `ADVENTURE`。
