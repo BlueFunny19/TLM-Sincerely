@@ -78,6 +78,23 @@ public record GuardRules(List<GuardEntry> entries) {
         return new GuardRules(next);
     }
 
+    /**
+     * 把某一项往前（delta &lt; 0，优先级更高）或往后（delta &gt; 0）挪 |delta| 位；挪到头就停在头，不在名单里则原样返回。
+     */
+    public GuardRules shift(UUID targetId, int delta) {
+        int index = indexOf(targetId);
+        if (index < 0 || delta == 0) {
+            return this;
+        }
+        int destination = Math.max(0, Math.min(entries.size() - 1, index + delta));
+        if (destination == index) {
+            return this;
+        }
+        List<GuardEntry> next = new ArrayList<>(entries);
+        next.add(destination, next.remove(index));
+        return new GuardRules(next);
+    }
+
     public GuardRules without(UUID targetId) {
         List<GuardEntry> next = new ArrayList<>(entries);
         next.removeIf(entry -> entry.targetId().equals(targetId));

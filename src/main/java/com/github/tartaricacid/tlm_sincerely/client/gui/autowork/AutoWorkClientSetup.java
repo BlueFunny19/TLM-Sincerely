@@ -29,8 +29,13 @@ public final class AutoWorkClientSetup {
     public static void onClientSetup(FMLClientSetupEvent event) {
         // enqueueWork runs the registration on the main client thread,
         // which is what MenuScreens.register requires.
-        event.enqueueWork(() -> net.minecraft.client.gui.screens.MenuScreens.register(
-                AutoWorkMenus.AUTO_WORK_CONFIG.get(),
-                AutoWorkConfigScreen::new));
+        event.enqueueWork(() -> {
+            net.minecraft.client.gui.screens.MenuScreens.register(
+                    AutoWorkMenus.AUTO_WORK_CONFIG.get(),
+                    AutoWorkConfigScreen::new);
+            net.minecraft.client.gui.screens.MenuScreens.register(
+                    AutoWorkMenus.GUARD_CONFIG.get(),
+                    com.github.tartaricacid.tlm_sincerely.client.gui.guard.GuardConfigScreen::new);
+        });
     }
 }

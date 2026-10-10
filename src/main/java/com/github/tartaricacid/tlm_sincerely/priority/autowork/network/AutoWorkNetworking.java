@@ -17,6 +17,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.github.tartaricacid.tlm_sincerely.SincerelyExtension;
+import com.github.tartaricacid.tlm_sincerely.ai.guard.GuardEditC2SPacket;
 import com.github.tartaricacid.tlm_sincerely.priority.autowork.network.packets.AutoWorkPushApplyS2CPacket;
 import com.github.tartaricacid.tlm_sincerely.priority.autowork.network.packets.AutoWorkPushOfferC2SPacket;
 import com.github.tartaricacid.tlm_sincerely.priority.autowork.network.packets.AutoWorkSeedS2CPacket;
@@ -38,7 +39,8 @@ public final class AutoWorkNetworking {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutoWorkNetworking.class);
     // v4: AutoWorkSnapshot gained the server-authoritative globalEnabled flag
     // (COMMON config is not synced to clients by either loader).
-    public static final String PROTOCOL_VERSION = "4";
+    // v5: GuardEditC2SPacket (guard task config screen) joined the channel.
+    public static final String PROTOCOL_VERSION = "5";
 
     private static final ResourceLocation CHANNEL_ID =
             new ResourceLocation(SincerelyExtension.MOD_ID, "auto_work");
@@ -110,6 +112,12 @@ public final class AutoWorkNetworking {
                 AutoWorkPushOfferC2SPacket::encode,
                 AutoWorkPushOfferC2SPacket::decode,
                 AutoWorkPushOfferC2SPacket::handle);
+
+        registerC2S(channel, GuardEditC2SPacket.class,
+                GuardEditC2SPacket.INDEX,
+                GuardEditC2SPacket::encode,
+                GuardEditC2SPacket::decode,
+                GuardEditC2SPacket::handle);
 
         LOGGER.info("[AutoWorkNetworking] registered channel {} protocol={}", CHANNEL_ID, PROTOCOL_VERSION);
     }

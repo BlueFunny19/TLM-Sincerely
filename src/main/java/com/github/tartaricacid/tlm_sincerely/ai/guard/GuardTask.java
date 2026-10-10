@@ -1,6 +1,8 @@
 package com.github.tartaricacid.tlm_sincerely.ai.guard;
 
+import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import com.github.tartaricacid.touhoulittlemaid.entity.task.TaskAttack;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -26,6 +28,12 @@ public class GuardTask extends TaskAttack {
         return GuardItems.GUARD_TASK_ICON.isPresent()
                 ? new ItemStack(GuardItems.GUARD_TASK_ICON.get())
                 : Items.SHIELD.getDefaultInstance();
+    }
+
+    /** 守护名单的配置界面（取代近战任务自带的"攻击对象"配置页）。 */
+    @Override
+    public MenuProvider getTaskConfigGuiProvider(EntityMaid maid) {
+        return GuardConfigContainer.createProvider(maid.getId());
     }
 
     @Override

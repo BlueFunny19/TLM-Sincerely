@@ -1,6 +1,7 @@
 package com.github.tartaricacid.tlm_sincerely.priority.autowork.menu;
 
 import com.github.tartaricacid.tlm_sincerely.SincerelyExtension;
+import com.github.tartaricacid.tlm_sincerely.ai.guard.GuardConfigContainer;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
@@ -22,6 +23,9 @@ public final class AutoWorkMenus {
 
     public static final RegistryObject<MenuType<AutoWorkConfigContainer>> AUTO_WORK_CONFIG =
             MENUS.register("auto_work_config", () -> AutoWorkConfigContainer.TYPE);
+
+    public static final RegistryObject<MenuType<GuardConfigContainer>> GUARD_CONFIG =
+            MENUS.register("guard_config", () -> GuardConfigContainer.TYPE);
 
     private AutoWorkMenus() {
     }

@@ -69,6 +69,21 @@ class GuardRulesTest {
     }
 
     @Test
+    void shift_movesOneStepAndStopsAtTheEnds() {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        UUID c = UUID.randomUUID();
+        GuardRules rules = GuardRules.EMPTY.with(entry(a, "a"), Placement.LAST)
+                .with(entry(b, "b"), Placement.LAST).with(entry(c, "c"), Placement.LAST);
+        assertEquals(List.of(b, a, c), rules.shift(b, -1).entries().stream().map(GuardEntry::targetId).toList());
+        assertEquals(List.of(a, c, b), rules.shift(b, 1).entries().stream().map(GuardEntry::targetId).toList());
+        assertEquals(rules, rules.shift(a, -1), "已经在最前面");
+        assertEquals(rules, rules.shift(c, 1), "已经在最后面");
+        assertEquals(rules, rules.shift(UUID.randomUUID(), -1), "不在名单里");
+        assertEquals(List.of(c, a, b), rules.shift(c, -5).entries().stream().map(GuardEntry::targetId).toList());
+    }
+
+    @Test
     void capacityIsLimitedAndANewTargetBeyondItIsIgnored() {
         GuardRules rules = GuardRules.EMPTY;
         for (int i = 0; i < GuardRules.MAX_ENTRIES; i++) {
