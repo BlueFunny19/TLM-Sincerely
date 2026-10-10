@@ -5,15 +5,24 @@
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?style=flat-square)](https://adoptium.net/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-> ⚠️ **AI 辅助开发声明 / AI-assisted development notice**
+> [!WARNING]
+> AI 辅助开发声明
 >
-> 本项目的 `1.20.1forge` 分支（即本分支）是在原项目基础上，借助 AI（主要是 Claude 与 DeepSeek 等模型）以 **vibe coding** 的方式添加定制功能的版本。代码有进行人工审核，但**仍然存在风险**（可能有未被发现的错误、与其他模组的兼容问题等）。**如果你介意，请不要使用本分支。**
+> 本项目的 `1.20.1forge` 分支（即本分支）是在原项目基础上，借助 AI 以 vibe coding 的方式添加定制功能的版本；
 >
-> This branch (`1.20.1forge`) adds custom features on top of the original project through AI-assisted *vibe coding* (mainly Claude and DeepSeek models). The code has been reviewed by a human, but **risks remain** (undiscovered bugs, compatibility issues with other mods, and so on). **If that matters to you, please do not use this branch.**
+> 辅助开发使用的模型为 Claude Sonnet 5.5 和 DeepSeek V4.1 Flash；
+>
+> 代码经过人工逐行校对，但作者水平有限，仍然存在风险（可能有未被发现的错误、与其他模组的兼容问题等）；
+>
+> 如果你介意，请不要使用本分支
 
-> 🔗 **建议搭配改版的 [TLM-Self-Talk](https://github.com/BlueFunny19/TLM-Self-Talk)（`forge-1.20.1` 分支）一起使用。** 女仆之间的「转告」联动（`tell_maid` 工具）需要它；不装也能正常使用本分支，只是没有这项联动。
+> 建议搭配改版的 [TLM-Self-Talk](https://github.com/BlueFunny19/TLM-Self-Talk)（`forge-1.20.1` 分支）一起使用；
 >
-> 文中标有「**改版新增**」「**改版变更**」的条目，就是本分支相对原版新增或修改的内容。
+> 女仆之间的「转告」联动（`tell_maid` 工具）需要它；
+>
+> 不搭配也可以正常使用本分支，只是少了这项联动；
+>
+> 文中标有「**改版新增**」「**改版变更**」的条目，就是本分支相对原版新增或修改的内容
 
 《车万女仆：真心为你》是 [Touhou Little Maid / 车万女仆](https://www.curseforge.com/minecraft/mc-mods/touhou-little-maid) 的 Forge 1.20.1 附属模组，围绕女仆对话、工作调度和长期记忆提供增强功能。（1.21.1 NeoForge 版本由 `1.21.1neo` 分支维护）
 目前实现了：
@@ -25,7 +34,7 @@
 - 女仆agent命令执行（AI 可以主人的身份执行游戏内命令，含危险命令确认与审计日志）
 - 女仆「转告」：女仆自己判断要不要把话转告给另一只女仆并请她回应（**改版新增**，需搭配改版 Self Talk）
 - 女仆「移动指令」：靠近 / 远离 / 前往某处 / 守护某人 / 留在原地 / 回家 / 放宽工作时间，可限时也可永久（**改版新增**）
-- 提示词按对话语言选择：中文用中文提示词，其他语言用英文并要求用该语言回复（**改版变更**，原版提示词为英文）
+- 提示词按对话语言选择：中文用中文提示词，其他语言用英文并要求用该语言回复（**改版变更**）
 
 欢迎反馈 bug 与提交 pr 修复
 
@@ -36,7 +45,7 @@
 [] 新增物品“日记本”，绑定女仆，用于 GUI 化管理女仆的记忆
 [] 新增物品“翻盖机”，绑定女仆，可唤起带输入框的聊天界面，与女仆agent沉浸式聊天
 
-> 当前版本：`0.4.0-beta`（**改版**；原版为 `0.2.x-beta`）
+> 当前版本：`0.4.0-beta`
 >
 > Mod ID：`tlm_sincerely`
 >
@@ -59,9 +68,9 @@
 
 - 在聊天栏中直接与最近的女仆对话。
 - 使用 `@女仆名` 指定对话目标。
-- **改版新增**：一句话同时对多只女仆说——`@颜 @澪 内容`，或 `@全体 内容`（范围内全部女仆）。每只女仆各自独立回复，并且都会被告知"玩家同时对谁说话"，所以她们的模型可以自己判断要不要互相转告。单次最多 5 只（`MaxTargets`，可改 1~20），超出时只发给最近的几只并提示；找不到的名字用红字单独列出。可用 `MultiTargetEnabled` 关闭，关闭后退回原版的单目标行为；`@全体` 的关键词可在 `AllKeywords` 里增删。
+- **改版新增**：一句话同时对多只女仆说——`@颜 @澪 内容`，或 `@全体 内容`（范围内全部女仆）。每只女仆各自独立回复，并且都会被告知"玩家同时对谁说话"，所以她们的模型可以自己判断要不要互相转告。单次最多 5 只（`MaxTargets`，可改 1~20），超出时只发给最近的几只并提示；找不到的名字用红字单独列出。可用 `MultiTargetEnabled` 关闭，关闭后退回单目标行为；`@全体` 的关键词可在 `AllKeywords` 里增删。
 - **改版新增**：女仆的回复含多个段落时，在聊天栏里分成多条显示，像是连续说了几句话（`SplitReplyLines`，默认开；只影响聊天栏显示，不影响气泡和聊天记录）。
-- **改版变更**：对话语言改用玩家的客户端语言（与主 Mod 自己的聊天界面一致）。原版把女仆的 TTS 语音语言当作对话语言传给主 Mod，TTS 语言设成英文的女仆会被要求用英文回复。聊天栏、`/tlmchat`、`/tlmmemory summarize` 与记忆整理四处都已改正。
+- **改版变更**：对话语言改用玩家的客户端语言（与主 Mod 自己的聊天界面一致）；聊天栏、`/tlmchat`、`/tlmmemory summarize` 与记忆整理四处都按这个语言处理。
 - 支持按名称、模糊名称和 UUID 查找女仆。
 - 支持严格前缀模式、自动对话范围和全局/私聊显示。
 - 提供 `/tlmchat` 命令管理对话模式和目标。
@@ -106,7 +115,6 @@
 - 路走不通时：距离不太远就传送到位，太远就放弃并让女仆说一句话（`MoveTeleportFallback` / `MoveTeleportMaxDistance`）。
 - 指令与暂停状态存在女仆自己的数据里，服务器重启后会继续生效或自动恢复；你在界面里手动改了模式，指令会自动终止，不会覆盖你的修改。
 - 相关配置在 `move` 分组与配置界面里：`MoveEnabled`、`MoveDefaultDurationSeconds`、`MoveMaxDurationSeconds`、`MoveMaxActivePerOwner`、`MoveAllowPermanent`、`MovePermanentReminderMinutes`、`MoveForceWorkSchedule`、`MoveTeleportFallback`、`MoveTeleportMaxDistance`。
-- 与原版不同：这是整块新增的功能，原版没有。
 
 ### 女仆转告（改版新增，需搭配改版 Self Talk）
 
