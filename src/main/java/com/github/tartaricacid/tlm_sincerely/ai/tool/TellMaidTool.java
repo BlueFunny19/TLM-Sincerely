@@ -39,7 +39,7 @@ public class TellMaidTool implements ITool<TellMaidTool.Result> {
     /** 转告文本长度上限（与聊天栏一致量级，避免把整段历史塞给对方）。 */
     private static final int MAX_MESSAGE_LENGTH = 512;
 
-    /** 可见性回显的附近玩家半径，与聊天栏模块的默认 64 格不同，取更小的“身边”语义。 */
+    /** 可见性回显的附近玩家半径，与聊天栏模块的喊话范围（TargetRange）不同，取更小的“身边”语义。 */
     private static final double BROADCAST_RANGE = 32.0;
 
     private static final String TOOL_DESC_EN = """
@@ -199,7 +199,7 @@ public class TellMaidTool implements ITool<TellMaidTool.Result> {
                             + MAX_MESSAGE_LENGTH + " characters"), toolCallId));
         }
 
-        List<EntityMaid> candidates = MaidFinder.getOwnedMaidsOfSameOwner(maid, MaidFinder.DEFAULT_RANGE, maid);
+        List<EntityMaid> candidates = MaidFinder.getOwnedMaidsOfSameOwner(maid, MaidFinder.targetRange(), maid);
         List<EntityMaid> matches = MaidFinder.matchByName(candidates, targetName, maid);
         if (matches.isEmpty()) {
             return completed(callback.addToolResult(noMatchMessage(zh, targetName, candidates), toolCallId));

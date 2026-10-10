@@ -22,6 +22,7 @@ public final class ChatBarConfig {
     public static ForgeConfigSpec.ConfigValue<String> PREFIX_PATTERN;
     public static ForgeConfigSpec.BooleanValue MULTI_TARGET_ENABLED;
     public static ForgeConfigSpec.IntValue MAX_TARGETS;
+    public static ForgeConfigSpec.DoubleValue TARGET_RANGE;
     public static ForgeConfigSpec.BooleanValue SPLIT_REPLY_LINES;
     public static ForgeConfigSpec.ConfigValue<List<? extends String>> ALL_KEYWORDS;
 
@@ -53,6 +54,11 @@ public final class ChatBarConfig {
 
         builder.comment("Maximum number of maids one chat message is delivered to (1-20)");
         MAX_TARGETS = builder.defineInRange("MaxTargets", 5, 1, 20);
+
+        builder.comment("How far away (in blocks) a maid can still hear the player: used to find the maids named with '@name' / '@all',",
+                "by the /tlmchat and /tlmmemory maid selectors, and by the tell_maid and maid_move tools to find another maid of the same owner",
+                "Measured as a straight-line distance in the same dimension; the no-prefix AutoChatRange below is a separate setting");
+        TARGET_RANGE = builder.defineInRange("TargetRange", 64.0, 1.0, 256.0);
 
         builder.comment("Keywords that mean 'every maid in range' when used as a target, compared case-insensitively");
         // 与 MaidCommandConfig 一致：默认值用可变 List，避免 Forge 在缺失键时对不可变集合做写入

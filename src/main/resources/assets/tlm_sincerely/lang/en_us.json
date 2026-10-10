@@ -32,6 +32,8 @@
     "config.tlm_sincerely.chatbar.split_reply_lines.tooltip": "Show a multi-paragraph maid reply as several chat lines (one per paragraph), as if she said several sentences in a row. Only changes how it is shown in chat; bubbles and history are untouched",
     "config.tlm_sincerely.chatbar.max_targets": "Max Targets per Message",
     "config.tlm_sincerely.chatbar.max_targets.tooltip": "How many maids one message may be delivered to; extra targets are dropped and the nearest ones are kept with a chat notice (1-20)",
+    "config.tlm_sincerely.chatbar.target_range": "Call Range",
+    "config.tlm_sincerely.chatbar.target_range.tooltip": "How far away (in blocks, straight-line, same dimension) a maid can still hear you. Used to find the maids named by '@name' / '@all', by the /tlmchat and /tlmmemory maid selectors, and by the tell_maid and maid_move tools to find another maid (1-256)",
     "config.tlm_sincerely.chatbar.all_keywords": "'All' Keywords",
     "config.tlm_sincerely.chatbar.all_keywords.tooltip": "Target words that mean 'every maid of mine in range', compared case-insensitively (defaults: 全体, all)",
     "config.tlm_sincerely.multi_task": "Auto Work Mode",

@@ -107,6 +107,16 @@ public final class ConfigScreen {
                 .setSaveConsumer(ChatBarConfig.MAX_TARGETS::set)
                 .build());
 
+        chatbar.add(entryBuilder.startDoubleField(
+                        Component.translatable("config.tlm_sincerely.chatbar.target_range"),
+                        ChatBarConfig.TARGET_RANGE.get())
+                .setDefaultValue(64.0)
+                .setMin(1.0)
+                .setMax(256.0)
+                .setTooltip(Component.translatable("config.tlm_sincerely.chatbar.target_range.tooltip"))
+                .setSaveConsumer(ChatBarConfig.TARGET_RANGE::set)
+                .build());
+
         chatbar.add(entryBuilder.startStrList(
                         Component.translatable("config.tlm_sincerely.chatbar.all_keywords"),
                         new ArrayList<>(ChatBarConfig.ALL_KEYWORDS.get()))

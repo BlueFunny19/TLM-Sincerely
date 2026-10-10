@@ -446,7 +446,7 @@ public class MaidMoveTool implements ITool<MaidMoveTool.Result> {
      * 解析 approach / retreat / guard 的目标：
      * <ul>
      *   <li>{@code me} / {@code 我} / 缺省 → 主人（必须在线且同维度）；</li>
-     *   <li>否则按 {@link MaidFinder#matchByName} 的规则在同一主人名下另一只女仆里匹配（同维度、64 格内）；</li>
+     *   <li>否则按 {@link MaidFinder#matchByName} 的规则在同一主人名下另一只女仆里匹配（同维度、喊话范围 TargetRange 内）；</li>
      *   <li>本维度找不到但在其他维度存在同名女仆 → {@code targetOtherDimension}。</li>
      * </ul>
      */
@@ -465,7 +465,7 @@ public class MaidMoveTool implements ITool<MaidMoveTool.Result> {
             return TargetResolution.fail(MoveText.selfTarget(zh));
         }
 
-        List<EntityMaid> candidates = MaidFinder.getOwnedMaidsOfSameOwner(maid, MaidFinder.DEFAULT_RANGE, maid);
+        List<EntityMaid> candidates = MaidFinder.getOwnedMaidsOfSameOwner(maid, MaidFinder.targetRange(), maid);
         List<EntityMaid> matches = MaidFinder.matchByName(candidates, name, maid);
         EntityMaid target = MaidFinder.findNearest(level, maid, matches);
         if (target != null) {

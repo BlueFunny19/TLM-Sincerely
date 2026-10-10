@@ -32,6 +32,8 @@
     "config.tlm_sincerely.chatbar.split_reply_lines.tooltip": "女仆的回复含多个段落（换行）时，在聊天栏里每段单独显示成一条消息，像是连续说了几句话；只影响聊天栏显示，不影响气泡和聊天记录",
     "config.tlm_sincerely.chatbar.max_targets": "单句目标上限",
     "config.tlm_sincerely.chatbar.max_targets.tooltip": "一句话最多同时发给多少只女仆；超出时只保留距离最近的若干只并给出提示（1-20）",
+    "config.tlm_sincerely.chatbar.target_range": "喊话范围",
+    "config.tlm_sincerely.chatbar.target_range.tooltip": "女仆能听到你说话的距离（格，直线距离，需在同一维度）。「@名字」「@全体」、/tlmchat 与 /tlmmemory 的女仆选择，以及女仆之间的转告、移动指令找另一只女仆，都用这个范围（1-256）",
     "config.tlm_sincerely.chatbar.all_keywords": "全体关键词",
     "config.tlm_sincerely.chatbar.all_keywords.tooltip": "被当作「发给我名下范围内全部女仆」的目标词，比较时忽略大小写（默认：全体、all）",
     "config.tlm_sincerely.multi_task": "自动工作模式",

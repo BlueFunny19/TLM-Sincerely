@@ -1,5 +1,6 @@
 package com.github.tartaricacid.tlm_sincerely.chatbar;
 
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.ChatBarConfig;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,17 +15,21 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class MaidFinder {
-    /** 默认查询/自动对话半径（格）。 */
-    public static final double DEFAULT_RANGE = 64.0;
-
-    public static List<EntityMaid> getOwnedMaids(ServerPlayer player) {
-        return getOwnedMaids(player, DEFAULT_RANGE);
+    /** 玩家“喊话”能传多远（格），由配置 {@code chatbar.TargetRange} 决定。必须在配置加载后调用。 */
+    public static double targetRange() {
+        return ChatBarConfig.TARGET_RANGE.get();
     }
 
+    public static List<EntityMaid> getOwnedMaids(ServerPlayer player) {
+        return getOwnedMaids(player, targetRange());
+    }
+
+    /** 玩家名下、存活、与玩家直线距离不超过 {@code range} 格（同维度）的女仆。 */
     public static List<EntityMaid> getOwnedMaids(ServerPlayer player, double range) {
+        double rangeSqr = range * range;
         return player.level().getEntitiesOfClass(EntityMaid.class,
                 player.getBoundingBox().inflate(range),
-                maid -> maid.isOwnedBy(player) && maid.isAlive()
+                maid -> maid.isOwnedBy(player) && maid.isAlive() && maid.distanceToSqr(player) <= rangeSqr
         );
     }
 
@@ -43,7 +48,7 @@ public final class MaidFinder {
      * 并把 {@link MultiFindResult#truncated()} 置位，由调用方提示玩家。
      *
      * @param names      名字列表，可为空（此时只有 {@code selectAll} 会命中）
-     * @param selectAll  是否把默认范围内属于该玩家的全部女仆加入结果（@全体）
+     * @param selectAll  是否把喊话范围（{@link #targetRange}）内属于该玩家的全部女仆加入结果（@全体）
      * @param maxTargets 结果数量上限，必须 ≥ 1
      * @param player     用于解析名字与计算距离的玩家
      */
@@ -141,12 +146,14 @@ public final class MaidFinder {
         if (ownerUuid == null) {
             return List.of();
         }
+        double rangeSqr = range * range;
         return level.getEntitiesOfClass(EntityMaid.class,
                 source.getBoundingBox().inflate(range),
                 maid -> maid != source
                         && maid != exclude
                         && maid.isAlive()
-                        && ownerUuid.equals(maid.getOwnerUUID()));
+                        && ownerUuid.equals(maid.getOwnerUUID())
+                        && maid.distanceToSqr(source) <= rangeSqr);
     }
 
     @Nullable
