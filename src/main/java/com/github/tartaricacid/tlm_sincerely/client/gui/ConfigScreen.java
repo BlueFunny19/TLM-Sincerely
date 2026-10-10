@@ -4,6 +4,7 @@ import com.github.tartaricacid.tlm_sincerely.config.subconfig.ChatBarConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MaidCommandConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MemoryConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.OvertimeConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.PriorityConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.RelayConfig;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
@@ -600,6 +601,30 @@ public final class ConfigScreen {
                 .build());
 
         addon.addEntry(move.build());
+
+        SubCategoryBuilder overtime = entryBuilder.startSubCategory(
+                Component.translatable("config.tlm_sincerely.overtime"));
+        overtime.setExpanded(true);
+
+        overtime.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.overtime.task_switch_enabled"),
+                        OvertimeConfig.TASK_SWITCH_ENABLED.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.overtime.task_switch_enabled.tooltip"))
+                .setSaveConsumer(OvertimeConfig.TASK_SWITCH_ENABLED::set)
+                .build());
+
+        overtime.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.overtime.task_hold_seconds"),
+                        OvertimeConfig.TASK_HOLD_SECONDS.get())
+                .setDefaultValue(300)
+                .setMin(30)
+                .setMax(3600)
+                .setTooltip(Component.translatable("config.tlm_sincerely.overtime.task_hold_seconds.tooltip"))
+                .setSaveConsumer(OvertimeConfig.TASK_HOLD_SECONDS::set)
+                .build());
+
+        addon.addEntry(overtime.build());
     }
 
     public static void register() {

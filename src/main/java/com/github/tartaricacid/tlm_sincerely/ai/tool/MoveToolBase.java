@@ -1,8 +1,8 @@
 package com.github.tartaricacid.tlm_sincerely.ai.tool;
 
 import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
-import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveText;
+import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeManager;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
 import com.github.tartaricacid.touhoulittlemaid.ai.agent.tool.ITool;
 import com.github.tartaricacid.touhoulittlemaid.ai.manager.entity.LLMCallback;
@@ -149,7 +149,7 @@ public abstract class MoveToolBase<R> implements ITool<R> {
      * 日程放宽的说明文字：真的放宽过（含沿用旧记录）→ {@link MoveText#scheduleForcedNote}；
      * 因为正在睡觉而没动日程 → {@link MoveText#scheduleSleepingNote}；本来就是全天工作 / 配置关闭 → 不追加。
      */
-    protected static String scheduleNote(boolean zh, MoveDirectiveManager.ScheduleChange change) {
+    protected static String scheduleNote(boolean zh, OvertimeManager.Acquisition change) {
         return switch (change.action()) {
             case FORCE_ALL, REUSE -> MoveText.scheduleForcedNote(zh);
             case UNCHANGED -> change.sleeping() ? MoveText.scheduleSleepingNote(zh) : "";

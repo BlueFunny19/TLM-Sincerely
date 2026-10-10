@@ -143,58 +143,55 @@ class MoveOrderNbtTest {
         assertEquals(3.0F, read.followSuspension().radius());
     }
 
-    // ===== 临时放宽日程保存的原日程（本次新增字段） =====
+    // ===== 旧版本留在指令标签里的"放宽日程前的原日程"（现在属于加班状态，这里只保留兼容读取） =====
 
     @Test
-    void roundTrip_orderWithOriginalSchedule() {
-        CompoundTag data = new CompoundTag();
-        MoveOrderData original = MoveOrderData.timed(MAID, OWNER, MoveAction.WORK_TIME, null,
-                0, 0, 0, 0, 9999L, 1200L, null, "DAY");
-        MoveOrderNbt.write(data, original);
-
-        MoveOrderData read = MoveOrderNbt.read(data);
-        assertNotNull(read);
-        assertEquals(original, read);
-        assertEquals("DAY", read.originalSchedule());
-        assertEquals(MoveAction.WORK_TIME, read.action());
-    }
-
-    @Test
-    void roundTrip_orderWithoutOriginalSchedule_readsNull() {
+    void write_neverWritesTheLegacyOriginalScheduleKey() {
         CompoundTag data = new CompoundTag();
         MoveOrderNbt.write(data, sample(false, null));
-
-        MoveOrderData read = MoveOrderNbt.read(data);
-        assertNotNull(read);
-        assertNull(read.originalSchedule());
         assertFalse(data.getCompound(MoveOrderNbt.ROOT_TAG).contains("originalSchedule"));
+        assertNull(MoveOrderNbt.readLegacyOriginalSchedule(data));
     }
 
-    /** 旧记录（本次改动之前写下的标签）没有 originalSchedule 键，必须读成"没有放宽过"。 */
+    /** 旧版本写下的标签里有 originalSchedule：指令本身照常读，原日程由 readLegacyOriginalSchedule 单独读出。 */
     @Test
-    void read_legacyRecordWithoutOriginalScheduleField_isCompatible() {
+    void read_legacyRecordWithOriginalSchedule_orderStillReadable() {
         CompoundTag data = new CompoundTag();
-        MoveOrderData withSchedule = MoveOrderData.timed(MAID, OWNER, MoveAction.GOTO, null,
-                1, 2, 3, 0, 9999L, 1200L, null, "NIGHT");
-        MoveOrderNbt.write(data, withSchedule);
-        // 模拟旧版本写下的标签：手动把新键删掉
-        data.getCompound(MoveOrderNbt.ROOT_TAG).remove("originalSchedule");
+        MoveOrderNbt.write(data, MoveOrderData.timed(MAID, OWNER, MoveAction.GOTO, null,
+                1, 2, 3, 0, 9999L, 1200L, null));
+        // 模拟旧版本写下的标签：手动补上当年的键
+        data.getCompound(MoveOrderNbt.ROOT_TAG).putString("originalSchedule", "NIGHT");
 
         MoveOrderData read = MoveOrderNbt.read(data);
         assertNotNull(read);
-        assertNull(read.originalSchedule());
         assertEquals(MoveAction.GOTO, read.action());
         assertEquals(9999L, read.expireAtGameTick());
+        assertEquals("NIGHT", MoveOrderNbt.readLegacyOriginalSchedule(data));
     }
 
     @Test
-    void read_emptyOriginalScheduleString_readsNull() {
+    void stripLegacyOriginalSchedule_removesOnlyThatKey() {
         CompoundTag data = new CompoundTag();
-        MoveOrderNbt.write(data, sample(false, null));
-        data.getCompound(MoveOrderNbt.ROOT_TAG).putString("originalSchedule", "");
+        MoveOrderNbt.write(data, MoveOrderData.timed(MAID, OWNER, MoveAction.GOTO, null,
+                1, 2, 3, 0, 9999L, 1200L, null));
+        data.getCompound(MoveOrderNbt.ROOT_TAG).putString("originalSchedule", "DAY");
 
+        MoveOrderNbt.stripLegacyOriginalSchedule(data);
+
+        assertNull(MoveOrderNbt.readLegacyOriginalSchedule(data));
         MoveOrderData read = MoveOrderNbt.read(data);
         assertNotNull(read);
-        assertNull(read.originalSchedule());
+        assertEquals(MoveAction.GOTO, read.action());
+    }
+
+    @Test
+    void readLegacyOriginalSchedule_emptyStringOrNoTag_readsNull() {
+        CompoundTag data = new CompoundTag();
+        assertNull(MoveOrderNbt.readLegacyOriginalSchedule(data));
+        assertNull(MoveOrderNbt.readLegacyOriginalSchedule(null));
+
+        MoveOrderNbt.write(data, sample(false, null));
+        data.getCompound(MoveOrderNbt.ROOT_TAG).putString("originalSchedule", "");
+        assertNull(MoveOrderNbt.readLegacyOriginalSchedule(data));
     }
 }

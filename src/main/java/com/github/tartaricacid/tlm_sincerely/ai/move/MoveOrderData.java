@@ -16,6 +16,9 @@ import java.util.UUID;
  * （{@code MinecraftServer#getTickCount()}）与它同源且每 tick 同步，重启后不会回到 0，
  * 因此 {@link #remainingTicks(long)} 直接用 gameTime 差值即可，重启后依然有效。
  *
+ * <p>指令期间"临时改成全天工作"保存的原日程不在这里：那是女仆自己的加班状态，
+ * 由 {@code ai.overtime.OvertimeManager} 持有和持久化。
+ *
  * @param maidId          执行指令的女仆
  * @param ownerId         女仆的主人（用于"每个主人同时生效指令数"上限）
  * @param action          动作
@@ -27,14 +30,11 @@ import java.util.UUID;
  * @param expireAtGameTick 到期 gameTime（含）；{@link #PERMANENT}（-1）表示永久，不会到期
  * @param createdGameTick 写入指令时的 gameTime（永久指令的提醒计时基准）
  * @param followSuspension 暂停跟随期间保存的"原状态"；{@code null} 表示本条指令不需要暂停跟随
- * @param originalSchedule 临时放宽日程期间保存的原日程（{@code MaidSchedule#name()}）；
- *                         {@code null} 表示本条指令没有放宽过日程（含读取旧记录的情形）
  */
 public record MoveOrderData(UUID maidId, UUID ownerId, MoveAction action, @Nullable UUID targetId,
                             double x, double y, double z, double distance,
                             long expireAtGameTick, long createdGameTick,
-                            @Nullable FollowSuspension followSuspension,
-                            @Nullable String originalSchedule) {
+                            @Nullable FollowSuspension followSuspension) {
     /** {@link #expireAtGameTick} 的"永久"取值。 */
     public static final long PERMANENT = -1L;
 
@@ -43,35 +43,16 @@ public record MoveOrderData(UUID maidId, UUID ownerId, MoveAction action, @Nulla
                                       double x, double y, double z, double distance,
                                       long expireAtGameTick, long createdGameTick,
                                       @Nullable FollowSuspension followSuspension) {
-        return timed(maidId, ownerId, action, targetId, x, y, z, distance,
-                expireAtGameTick, createdGameTick, followSuspension, null);
-    }
-
-    /** 时限指令（带"临时放宽日程"保存的原日程）。 */
-    public static MoveOrderData timed(UUID maidId, UUID ownerId, MoveAction action, @Nullable UUID targetId,
-                                      double x, double y, double z, double distance,
-                                      long expireAtGameTick, long createdGameTick,
-                                      @Nullable FollowSuspension followSuspension,
-                                      @Nullable String originalSchedule) {
         return new MoveOrderData(maidId, ownerId, action, targetId, x, y, z, distance,
-                expireAtGameTick, createdGameTick, followSuspension, originalSchedule);
+                expireAtGameTick, createdGameTick, followSuspension);
     }
 
     /** 永久指令（不会到期，{@code createdGameTick} 用作提醒计时基准）。 */
     public static MoveOrderData permanent(UUID maidId, UUID ownerId, MoveAction action, @Nullable UUID targetId,
                                           double x, double y, double z, double distance, long createdGameTick,
                                           @Nullable FollowSuspension followSuspension) {
-        return permanent(maidId, ownerId, action, targetId, x, y, z, distance, createdGameTick,
-                followSuspension, null);
-    }
-
-    /** 永久指令（带"临时放宽日程"保存的原日程）。 */
-    public static MoveOrderData permanent(UUID maidId, UUID ownerId, MoveAction action, @Nullable UUID targetId,
-                                          double x, double y, double z, double distance, long createdGameTick,
-                                          @Nullable FollowSuspension followSuspension,
-                                          @Nullable String originalSchedule) {
         return new MoveOrderData(maidId, ownerId, action, targetId, x, y, z, distance,
-                PERMANENT, createdGameTick, followSuspension, originalSchedule);
+                PERMANENT, createdGameTick, followSuspension);
     }
 
     public boolean isPermanent() {
@@ -102,18 +83,12 @@ public record MoveOrderData(UUID maidId, UUID ownerId, MoveAction action, @Nulla
     /** 换一个暂停跟随记录（例如重新登记时把持久化的记录装回来）。 */
     public MoveOrderData withSuspension(@Nullable FollowSuspension suspension) {
         return new MoveOrderData(maidId, ownerId, action, targetId, x, y, z, distance,
-                expireAtGameTick, createdGameTick, suspension, originalSchedule);
-    }
-
-    /** 换一个"临时放宽日程"保存的原日程（登记时挂上，或外部改动后清掉）。 */
-    public MoveOrderData withOriginalSchedule(@Nullable String schedule) {
-        return new MoveOrderData(maidId, ownerId, action, targetId, x, y, z, distance,
-                expireAtGameTick, createdGameTick, followSuspension, schedule);
+                expireAtGameTick, createdGameTick, suspension);
     }
 
     /** 重新登记（跨重启恢复）时改写到期的 gameTime。 */
     public MoveOrderData withExpireAtGameTick(long newExpireAtGameTick) {
         return new MoveOrderData(maidId, ownerId, action, targetId, x, y, z, distance,
-                newExpireAtGameTick, createdGameTick, followSuspension, originalSchedule);
+                newExpireAtGameTick, createdGameTick, followSuspension);
     }
 }

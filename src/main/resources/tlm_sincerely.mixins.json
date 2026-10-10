@@ -13,7 +13,8 @@
         "ChatMaintenanceGuardMixin",
         "CommandConfirmationChatGuardMixin",
         "ChatBubbleSilenceMixin",
-        "TtsSilenceMixin"
+        "TtsSilenceMixin",
+        "SwitchWorkTaskToolMixin"
     ],
     "client": [
         "AbstractMaidContainerGuiMixin",

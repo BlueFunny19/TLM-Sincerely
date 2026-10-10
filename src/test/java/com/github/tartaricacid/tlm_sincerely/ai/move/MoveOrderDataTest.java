@@ -97,33 +97,4 @@ class MoveOrderDataTest {
         assertEquals(5000L, suspended.expireAtGameTick());
         assertEquals(MAID, suspended.maidId());
     }
-
-    @Test
-    void originalSchedule_defaultsToNull() {
-        assertNull(timed(5000L, 1000L).originalSchedule());
-        assertNull(MoveOrderData.permanent(MAID, OWNER, MoveAction.WORK_TIME, null,
-                0, 0, 0, 0, 1000L, null).originalSchedule());
-    }
-
-    @Test
-    void withOriginalSchedule_keepsEverythingElse() {
-        FollowSuspension suspension = new FollowSuspension(true, false, 0L, 0L, 0L, -1.0F);
-        MoveOrderData order = MoveOrderData.timed(MAID, OWNER, MoveAction.STAY, null,
-                0, 0, 0, 0, 5000L, 1000L, suspension);
-        MoveOrderData relieved = order.withOriginalSchedule("DAY");
-
-        assertEquals("DAY", relieved.originalSchedule());
-        assertEquals(5000L, relieved.expireAtGameTick());
-        assertEquals(1000L, relieved.createdGameTick());
-        assertSame(suspension, relieved.followSuspension());
-        assertEquals(MoveAction.STAY, relieved.action());
-        assertEquals(MAID, relieved.maidId());
-    }
-
-    @Test
-    void withOriginalSchedule_null_clearsTheRecord() {
-        MoveOrderData order = MoveOrderData.timed(MAID, OWNER, MoveAction.WORK_TIME, null,
-                0, 0, 0, 0, 5000L, 1000L, null, "NIGHT");
-        assertNull(order.withOriginalSchedule(null).originalSchedule());
-    }
 }

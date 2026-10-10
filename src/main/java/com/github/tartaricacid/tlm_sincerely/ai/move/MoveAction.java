@@ -73,7 +73,7 @@ public enum MoveAction {
      *
      * <p>approach / retreat / goto / guard / stay / work_time 需要；go_home（永久性改变、不产生指令）
      * 与 cancel（结束指令）不需要。是否真的放宽还要看 {@code MoveForceWorkSchedule} 与女仆是否在睡觉，
-     * 见 {@link ScheduleRelief#decide}。
+     * 见 {@link com.github.tartaricacid.tlm_sincerely.ai.overtime.ScheduleRelief#decide}。
      */
     public boolean needsScheduleRelief() {
         return switch (this) {

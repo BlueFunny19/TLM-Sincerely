@@ -1,4 +1,4 @@
-package com.github.tartaricacid.tlm_sincerely.ai.move;
+package com.github.tartaricacid.tlm_sincerely.ai.overtime;
 
 import org.junit.jupiter.api.Test;
 

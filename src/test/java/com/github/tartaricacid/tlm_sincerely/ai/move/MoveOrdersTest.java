@@ -164,15 +164,15 @@ class MoveOrdersTest {
 
     // ===== work_time（不移动、只放宽日程的指令） =====
 
-    private static MoveOrderData workTimeOrder(UUID maid, UUID owner, long expireTick, String originalSchedule) {
+    private static MoveOrderData workTimeOrder(UUID maid, UUID owner, long expireTick) {
         return MoveOrderData.timed(maid, owner, MoveAction.WORK_TIME, null, 0.0D, 0.0D, 0.0D, 0.0D,
-                expireTick, 0L, null, originalSchedule);
+                expireTick, 0L, null);
     }
 
     @Test
     void workTime_occupiesASlotAndExpiresLikeAnyTimedOrder() {
         MoveOrders orders = new MoveOrders();
-        orders.put(workTimeOrder(maidA, owner, 100L, "DAY"), 1);
+        orders.put(workTimeOrder(maidA, owner, 100L), 1);
         assertEquals(1, orders.countForOwner(owner));
         assertEquals(MoveOrders.PutResult.LIMIT_REACHED, orders.put(order(maidB, owner, 100L), 1));
 
@@ -181,16 +181,15 @@ class MoveOrdersTest {
     }
 
     @Test
-    void workTime_permanent_isNeverRemovedAndKeepsTheSavedSchedule() {
+    void workTime_permanent_isNeverRemoved() {
         MoveOrders orders = new MoveOrders();
         MoveOrderData permanent = MoveOrderData.permanent(maidA, owner, MoveAction.WORK_TIME, null,
-                0.0D, 0.0D, 0.0D, 0.0D, 0L, null, "NIGHT");
+                0.0D, 0.0D, 0.0D, 0.0D, 0L, null);
         orders.put(permanent, 1);
 
         assertEquals(List.of(), orders.removeExpired(Long.MAX_VALUE / 2));
         assertTrue(orders.isActive(maidA));
         assertTrue(orders.get(maidA).isPermanent());
-        assertEquals("NIGHT", orders.get(maidA).originalSchedule());
         assertEquals(MoveOrders.PutResult.LIMIT_REACHED, orders.put(order(maidB, owner, 100L), 1));
     }
 
@@ -198,9 +197,8 @@ class MoveOrdersTest {
     void workTime_canReplaceAMovementOrderForFreeAndBeReplaced() {
         MoveOrders orders = new MoveOrders();
         orders.put(order(maidA, owner, 100L), 1);
-        assertEquals(MoveOrders.PutResult.OK, orders.put(workTimeOrder(maidA, owner, 200L, "DAY"), 1));
+        assertEquals(MoveOrders.PutResult.OK, orders.put(workTimeOrder(maidA, owner, 200L), 1));
         assertEquals(MoveAction.WORK_TIME, orders.get(maidA).action());
-        assertEquals("DAY", orders.get(maidA).originalSchedule());
         assertEquals(1, orders.size());
 
         // 反向：work_time 被移动指令覆盖，也不占额外名额

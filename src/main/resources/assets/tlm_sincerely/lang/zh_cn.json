@@ -225,5 +225,10 @@
     "config.tlm_sincerely.move.teleport_max_distance": "传送兜底的最大距离（格）",
     "config.tlm_sincerely.move.teleport_max_distance.tooltip": "女仆到目的地的距离超过这个值就放弃指令（女仆会说明太远了），只有不超过时才会传送过去（8-256）",
     "config.tlm_sincerely.move.force_work_schedule": "指令期间临时改成全天工作",
-    "config.tlm_sincerely.move.force_work_schedule.tooltip": "移动指令生效期间，只要女仆没在睡觉就把她的日程临时改成“全天工作”，指令结束（到期 / 取消 / 被替换）后恢复原来的日程；这样没有工作坐标的女仆夜里也能移动、也能接受工作任务。work_time 指令自己就是为了放宽日程，不受本开关影响。注意：你手动改日程（女仆界面或主模组 switch_schedule 工具）会被视为接管，指令结束时不会把日程改回去"
+    "config.tlm_sincerely.move.force_work_schedule.tooltip": "移动指令生效期间，只要女仆没在睡觉就把她的日程临时改成“全天工作”，指令结束（到期 / 取消 / 被替换）后恢复原来的日程；这样没有工作坐标的女仆夜里也能移动、也能接受工作任务。work_time 指令自己就是为了放宽日程，不受本开关影响。注意：你手动改日程（女仆界面或主模组 switch_schedule 工具）会被视为接管，指令结束时不会把日程改回去",
+    "config.tlm_sincerely.overtime": "加班",
+    "config.tlm_sincerely.overtime.task_switch_enabled": "切换工作任务时允许加班",
+    "config.tlm_sincerely.overtime.task_switch_enabled.tooltip": "玩家（通过模型）在女仆不是工作时间时让她切换工作任务，不再回答“现在不是工作时间”，而是把她的日程临时改成全天工作，让她把活干起来；结束后恢复原日程。加班期间你手动改日程（女仆界面或主模组 switch_schedule 工具）会被视为接管，不会再改回去",
+    "config.tlm_sincerely.overtime.task_hold_seconds": "加班持续时间（秒）",
+    "config.tlm_sincerely.overtime.task_hold_seconds.tooltip": "切换工作任务触发的加班，在没有新指令时最多持续多久（秒，30-3600）；每次再切换任务都会重新计时，计时用完（或女仆被切到待命任务）就恢复原日程。目前没有可靠的办法判断每一种任务“活已经干完”，这个计时就是“活干完了”的替身"
 }

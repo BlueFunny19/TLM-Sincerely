@@ -1,6 +1,7 @@
 package com.github.tartaricacid.tlm_sincerely;
 
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
+import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeManager;
 import com.github.tartaricacid.tlm_sincerely.ai.tool.TellMaidTool;
 import com.github.tartaricacid.tlm_sincerely.command.AutoWorkCompatCommand;
 import com.github.tartaricacid.tlm_sincerely.command.AutoWorkPresetCommand;
@@ -105,6 +106,8 @@ public class SincerelyMod {
             MemoryMaintenanceManager.onServerTick(event.getServer());
             // maid_move：指令表每 10 tick 处理一次（间隔判断在管理器内部）
             MoveDirectiveManager.onServerTick(event.getServer());
+            // 加班（日程临时改成全天工作）：到期 / 活干完 / 玩家接管的检查，每 20 tick 一次
+            OvertimeManager.onServerTick(event.getServer());
             AutoWorkCompatService compatService = AutoWorkCompatService.getOrNull(event.getServer());
             if (compatService != null) {
                 compatService.onServerTick();
@@ -134,6 +137,8 @@ public class SincerelyMod {
     @SubscribeEvent
     public void onEntityJoinLevel(EntityJoinLevelEvent event) {
         if (event.getLevel() instanceof ServerLevel level && event.getEntity() instanceof EntityMaid maid) {
+            // 顺序不能换：指令到期时要来释放加班里的持有者，所以加班状态必须先装回
+            OvertimeManager.onMaidLoaded(level, maid);
             MoveDirectiveManager.onMaidLoaded(level, maid);
         }
     }
@@ -159,6 +164,7 @@ public class SincerelyMod {
         MaidMemoryManager.clearCache();
         TellMaidTool.clearRateLimitState();
         MoveDirectiveManager.clear();
+        OvertimeManager.clear();
     }
 
     @SubscribeEvent

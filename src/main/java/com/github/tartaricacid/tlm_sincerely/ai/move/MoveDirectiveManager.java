@@ -1,8 +1,10 @@
 package com.github.tartaricacid.tlm_sincerely.ai.move;
 
+import com.github.tartaricacid.tlm_sincerely.ai.MaidLookup;
 import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
+import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeHolder;
+import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeManager;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
-import com.github.tartaricacid.touhoulittlemaid.entity.ai.brain.MaidSchedule;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
@@ -42,12 +44,13 @@ import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation.walkT
  *   <li>暂停跟随（{@link FollowSuspension}）：stay / goto / retreat 与"目标不是主人"的
  *       approach / guard 在生效期间把女仆临时切到居家模式，结束（到期 / cancel / 被替换 /
  *       目标失效 / 死亡 / 外因）时精确恢复原状态；</li>
- *   <li>临时放宽工作时间（{@link ScheduleRelief}）：任何移动类指令生效期间，只要女仆不在睡觉，
- *       就把她的日程临时改成 TLM 的 {@code MaidSchedule.ALL}（全天工作），结束时恢复原日程；</li>
+ *   <li>加班（{@link OvertimeManager}）：移动类指令生效期间，指令是"加班"的持有者之一——只要女仆不在睡觉，
+ *       日程就被临时改成 TLM 的 {@code MaidSchedule.ALL}（全天工作）；指令结束时释放，
+ *       没有别的持有者了才恢复原日程；</li>
  *   <li>永久指令的定期提醒与时限指令的到期提示（女仆自己说话）；</li>
- *   <li>跨服务器重启恢复：指令、"暂停前原状态"与"放宽日程前的原日程"一起写进女仆
+ *   <li>跨服务器重启恢复：指令与"暂停前原状态"一起写进女仆
  *       {@code getPersistentData()} 的 {@link MoveOrderNbt#ROOT_TAG} 子标签，重启后由
- *       {@link #onMaidLoaded} 重新登记或立刻恢复。</li>
+ *       {@link #onMaidLoaded} 重新登记或立刻恢复（加班状态由 {@link OvertimeManager} 自己持久化）。</li>
  * </ol>
  *
  * <p><b>移动实现</b>：用 Brain 的 {@code WALK_TARGET} 记忆下发，与主模组自己的走动行为一致，
@@ -79,13 +82,6 @@ public final class MoveDirectiveManager {
 
     /** 每只女仆"暂停跟随"期间保存的原状态；只有真正暂停过的女仆才有记录。 */
     private static final Map<UUID, FollowSuspension> SUSPENSIONS = new HashMap<>();
-
-    /**
-     * 每只女仆"临时放宽工作时间"期间保存的原日程（{@link MaidSchedule#name()}）；
-     * 只有真正放宽过的女仆才有记录。与 {@link #SUSPENSIONS} 同一套"保存 → 恢复 → 外部改动检测 →
-     * 替换时不重复保存"机制，详见 {@link ScheduleRelief}。
-     */
-    private static final Map<UUID, String> SCHEDULE_RELIEF = new HashMap<>();
 
     /** 永久指令的提醒计时。 */
     private static final Map<UUID, MoveReminder> REMINDERS = new HashMap<>();
@@ -271,161 +267,7 @@ public final class MoveDirectiveManager {
         return true;
     }
 
-    // ===== 临时放宽工作时间（把日程改成全天工作） =====
-
-    /** {@link #onScheduleRelief} 的结果：日程放宽做了什么，以及新指令要持久化的"原日程"。 */
-    public record ScheduleChange(ScheduleRelief.Action action, @Nullable String originalSchedule, boolean sleeping) {
-    }
-
-    /**
-     * 新指令登记时的"临时放宽工作时间"处理：按 {@link ScheduleRelief#decide} 的决策表
-     * 保存原日程并把日程改成 {@link MaidSchedule#ALL}，或者沿用已有的原日程记录，
-     * 或者什么都不做（睡觉 / 本来就是全天工作 / 配置关闭）。
-     *
-     * <p><b>关键约定</b>：这只女仆已经有"原日程"记录时沿用旧记录，绝不把"已经被改成 ALL 的日程"
-     * 当成原日程再存一次，否则指令结束后永远恢复不回去（与暂停跟随的"不重复保存"同一套规则）。
-     *
-     * <p>动作本身不需要放宽（{@link MoveAction#needsScheduleRelief()} 为 false，即 go_home / cancel）
-     * 时立即恢复并清记录。
-     *
-     * @return 见 {@link ScheduleChange}；{@code originalSchedule} 要挂到新指令上一起持久化
-     */
-    public static ScheduleChange onScheduleRelief(EntityMaid maid, MoveOrderData order) {
-        if (maid == null || order == null || !order.action().needsScheduleRelief()) {
-            if (maid != null) {
-                restoreScheduleRelief(maid.getUUID(), maid, "replaced-by-order-without-relief");
-            }
-            return new ScheduleChange(ScheduleRelief.Action.UNCHANGED, null, false);
-        }
-        UUID maidId = maid.getUUID();
-        // 先处理"玩家接管"：放宽期间日程被改成别的值就丢掉旧记录，后面按当前日程重新判定
-        reconcileScheduleRelief(maidId, maid, "replaced");
-        boolean sleeping = maid.isSleeping();
-        boolean currentlyAll = isScheduleAll(maid);
-        boolean hasSaved = SCHEDULE_RELIEF.containsKey(maidId);
-        // work_time 自己就是为了放宽日程，不受 MoveForceWorkSchedule 影响；其余指令都要看配置
-        boolean configAllows = order.action().isWorkTime() || MoveConfig.MOVE_FORCE_WORK_SCHEDULE.get();
-        ScheduleRelief.Action action = ScheduleRelief.decide(sleeping, currentlyAll, hasSaved, configAllows);
-        return switch (action) {
-            case FORCE_ALL -> {
-                String original = currentScheduleName(maid);
-                if (original == null) {
-                    LOGGER.warn("[maid_move] cannot read the current schedule, work schedule not widened. maid={} action={}",
-                            shortId(maidId), order.action().id());
-                    yield new ScheduleChange(ScheduleRelief.Action.UNCHANGED, null, sleeping);
-                }
-                SCHEDULE_RELIEF.put(maidId, original);
-                maid.setSchedule(MaidSchedule.ALL);
-                LOGGER.info("[maid_move] work schedule widened: maid={} action={} from={} to={}",
-                        shortId(maidId), order.action().id(), original, MaidSchedule.ALL.name());
-                yield new ScheduleChange(action, original, sleeping);
-            }
-            case REUSE -> {
-                String original = SCHEDULE_RELIEF.get(maidId);
-                LOGGER.info("[maid_move] work schedule already widened, keeping the saved original. maid={} action={} saved={}",
-                        shortId(maidId), order.action().id(), original);
-                yield new ScheduleChange(action, original, sleeping);
-            }
-            default -> {
-                if (sleeping) {
-                    LOGGER.info("[maid_move] work schedule not widened: the maid is sleeping. maid={} action={}",
-                            shortId(maidId), order.action().id());
-                } else if (currentlyAll) {
-                    LOGGER.info("[maid_move] work schedule not widened: it is already {}. maid={} action={}",
-                            MaidSchedule.ALL.name(), shortId(maidId), order.action().id());
-                } else if (!configAllows) {
-                    LOGGER.info("[maid_move] work schedule not widened: MoveForceWorkSchedule is disabled. maid={} action={}",
-                            shortId(maidId), order.action().id());
-                }
-                yield new ScheduleChange(action, null, sleeping);
-            }
-        };
-    }
-
-    /**
-     * 外部改动检测：放宽期间如果女仆的日程已经不是 {@link MaidSchedule#ALL}（玩家在界面里或用主模组
-     * 的 {@code switch_schedule} 工具改了），视为玩家接管——<b>不恢复</b>，清掉该部分保存记录，只写 INFO。
-     *
-     * @return 本次是否真的丢弃了一份记录
-     */
-    public static boolean reconcileScheduleRelief(@Nullable UUID maidId, @Nullable EntityMaid maid, String reason) {
-        if (maidId == null || maid == null || !SCHEDULE_RELIEF.containsKey(maidId) || isScheduleAll(maid)) {
-            return false;
-        }
-        String saved = SCHEDULE_RELIEF.remove(maidId);
-        LOGGER.info("[maid_move] work schedule was changed externally, dropping the saved original (no restore). maid={} reason={} saved={} current={}",
-                shortId(maidId), reason, saved, currentScheduleName(maid));
-        return true;
-    }
-
-    /**
-     * 结束指令时恢复原日程。
-     *
-     * <p>与 {@link #restoreSuspension} 同构：没有记录 / 女仆不在场（记录留到重新加载）返回 false；
-     * 当前日程已经不是 ALL 时视为玩家接管，不恢复、清记录、写 INFO；否则 {@code setSchedule(原日程)}。
-     *
-     * @return 是否真的执行了恢复
-     */
-    public static boolean restoreScheduleRelief(@Nullable UUID maidId, @Nullable EntityMaid maid, String reason) {
-        if (maidId == null) {
-            return false;
-        }
-        String saved = SCHEDULE_RELIEF.remove(maidId);
-        if (saved == null) {
-            return false;
-        }
-        if (maid == null || maid.isRemoved()) {
-            // 女仆不在（区块卸载 / 被移除）：标签里还有保存好的原日程，等重新加载时再恢复
-            SCHEDULE_RELIEF.put(maidId, saved);
-            LOGGER.info("[maid_move] cannot restore the work schedule now (maid unavailable), keeping it for reload. maid={} reason={}",
-                    shortId(maidId), reason);
-            return false;
-        }
-        if (ScheduleRelief.decideRestore(saved, isScheduleAll(maid)) == ScheduleRelief.RestoreAction.EXTERNAL_CHANGE) {
-            LOGGER.info("[maid_move] work schedule changed externally, dropping the order without restoring the schedule. maid={} reason={} saved={} current={}",
-                    shortId(maidId), reason, saved, currentScheduleName(maid));
-            return false;
-        }
-        MaidSchedule original = parseSchedule(saved);
-        if (original == null) {
-            LOGGER.warn("[maid_move] unknown saved schedule '{}', not restoring the work schedule. maid={} reason={}",
-                    saved, shortId(maidId), reason);
-            return false;
-        }
-        maid.setSchedule(original);
-        LOGGER.info("[maid_move] work schedule restored: maid={} reason={} from={} to={}",
-                shortId(maidId), reason, MaidSchedule.ALL.name(), original.name());
-        return true;
-    }
-
-    /** 女仆当前日程是否已经是"全天工作"。 */
-    public static boolean isScheduleAll(@Nullable EntityMaid maid) {
-        return maid != null && maid.getSchedule() == MaidSchedule.ALL;
-    }
-
-    @Nullable
-    private static String currentScheduleName(@Nullable EntityMaid maid) {
-        if (maid == null) {
-            return null;
-        }
-        MaidSchedule schedule = maid.getSchedule();
-        return schedule == null ? null : schedule.name();
-    }
-
-    /** 解析保存的日程名；枚举值对不上（旧版本 / 手改存档）时返回 null，由调用方放弃恢复。 */
-    @Nullable
-    private static MaidSchedule parseSchedule(@Nullable String name) {
-        if (name == null) {
-            return null;
-        }
-        try {
-            return MaidSchedule.valueOf(name);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    /** {@link #finishOrder} 的结果：两套状态守卫里各自有没有真的执行恢复。 */
+    /** {@link #finishOrder} 的结果：暂停跟随与加班里各自有没有真的执行恢复。 */
     private record RestoredState(boolean suspension, boolean schedule) {
     }
 
@@ -434,6 +276,9 @@ public final class MoveDirectiveManager {
      * 指令的每一种结束路径都必须走这里，否则女仆会一直停留在"居家 + 无工作坐标 + 全天工作"的状态。
      * （女仆不在场时清不了标签，但这没关系：标签里的"原状态"仍然完整，
      * 下次加载时由 {@link #onMaidLoaded} 重新登记或恢复。）
+     *
+     * <p>临时改成全天工作（加班）不在这里保存：指令只是加班的持有者之一，结束时释放它，
+     * 没有别的持有者了才会恢复日程（见 {@link OvertimeManager}）。
      */
     private static RestoredState finishOrder(@Nullable UUID maidId, @Nullable EntityMaid maid, String reason) {
         if (maidId == null) {
@@ -443,12 +288,12 @@ public final class MoveDirectiveManager {
             MoveOrderNbt.clear(maid.getPersistentData());
         }
         boolean suspension = restoreSuspension(maidId, maid, reason);
-        boolean schedule = restoreScheduleRelief(maidId, maid, reason);
+        boolean schedule = OvertimeManager.release(maidId, maid, OvertimeHolder.ORDER, reason);
         clearOrderRuntimeState(maidId);
         return new RestoredState(suspension, schedule);
     }
 
-    /** 清掉一只女仆的卡住记录与提醒计时（不碰 ORDERS、SUSPENSIONS 与 SCHEDULE_RELIEF）。 */
+    /** 清掉一只女仆的卡住记录与提醒计时（不碰 ORDERS 与 SUSPENSIONS）。 */
     private static void clearOrderRuntimeState(UUID maidId) {
         PROGRESS.remove(maidId);
         REMINDERS.remove(maidId);
@@ -490,7 +335,6 @@ public final class MoveDirectiveManager {
         ORDERS.clear();
         PROGRESS.clear();
         SUSPENSIONS.clear();
-        SCHEDULE_RELIEF.clear();
         REMINDERS.clear();
         tickCounter = 0;
     }
@@ -507,9 +351,8 @@ public final class MoveDirectiveManager {
      *       一个周期 = 10 tick），永久指令的提醒计时从重启后重新开始；</li>
      *   <li>数据读不出来 → 拿不准就按"恢复原状态并丢弃"处理。</li>
      * </ul>
-     * 日程放宽（{@link ScheduleRelief}）跟着一起恢复：标签里有"原日程"且重新登记时，日程仍是
-     * {@link MaidSchedule#ALL} 就保持并装回内存记录；已经不是 ALL 说明玩家自己改过，视为玩家接管，
-     * 不恢复、丢掉该字段。已经到期 / 读不出来 / 没名额而丢弃指令时，有记录就一并恢复原日程。
+     * 临时改成全天工作的"加班"由 {@link OvertimeManager#onMaidLoaded} 先行装回（调用方保证它先于本方法），
+     * 本方法只在指令结束 / 被丢弃时释放指令这个持有者，由它决定要不要恢复原日程。
      */
     public static void onMaidLoaded(ServerLevel level, EntityMaid maid) {
         if (level == null || maid == null) {
@@ -544,21 +387,13 @@ public final class MoveDirectiveManager {
             return;
         }
         long remaining = stored.isPermanent() ? MoveOrderData.PERMANENT : stored.expireAtGameTick() - nowGameTick;
-        // 放宽日程的记录：当前日程已经不是 ALL 说明玩家在重启前后自己改过，视为玩家接管，
-        // 不恢复也不重新登记（等于"没有放宽过"），并把标签里的该字段一并去掉
-        String originalSchedule = stored.originalSchedule();
-        if (originalSchedule != null && !isScheduleAll(maid)) {
-            LOGGER.info("[maid_move] reload: work schedule was changed externally, dropping the saved original. maid={} saved={} current={}",
-                    shortId(maidId), originalSchedule, currentScheduleName(maid));
-            originalSchedule = null;
-        }
         MoveOrderData reRegistered = stored.isPermanent()
                 ? MoveOrderData.permanent(stored.maidId(), stored.ownerId(), stored.action(), stored.targetId(),
                         stored.x(), stored.y(), stored.z(), stored.distance(), nowGameTick,
-                        stored.followSuspension(), originalSchedule)
+                        stored.followSuspension())
                 : MoveOrderData.timed(stored.maidId(), stored.ownerId(), stored.action(), stored.targetId(),
                         stored.x(), stored.y(), stored.z(), stored.distance(), stored.expireAtGameTick(),
-                        nowGameTick, stored.followSuspension(), originalSchedule);
+                        nowGameTick, stored.followSuspension());
         if (ORDERS.put(reRegistered, MoveConfig.MOVE_MAX_ACTIVE_PER_OWNER.get()) != MoveOrders.PutResult.OK) {
             // 名额被这次会话里的新指令占满了：按"拿不准就恢复并丢弃"处理，不让女仆留在被改过的状态里
             LOGGER.info("[maid_move] reload: no free order slot, restoring and dropping. maid={}", shortId(maidId));
@@ -572,19 +407,14 @@ public final class MoveDirectiveManager {
         if (stored.followSuspension() != null) {
             SUSPENSIONS.put(maidId, stored.followSuspension());
         }
-        if (originalSchedule != null) {
-            SCHEDULE_RELIEF.put(maidId, originalSchedule);
-            LOGGER.info("[maid_move] reload: keeping the widened work schedule. maid={} original={}",
-                    shortId(maidId), originalSchedule);
-        }
-        LOGGER.info("[maid_move] reload: order re-registered. maid={} action={} permanent={} remainingTicks={} followSuspended={} scheduleRelieved={}",
+        LOGGER.info("[maid_move] reload: order re-registered. maid={} action={} permanent={} remainingTicks={} followSuspended={} overtime={}",
                 shortId(maidId), stored.action().id(), stored.isPermanent(), remaining,
-                stored.followSuspension() != null, originalSchedule != null);
+                stored.followSuspension() != null, OvertimeManager.holds(maidId, OvertimeHolder.ORDER));
     }
 
     /**
      * 重新加载时"恢复原状态并丢弃指令"的统一入口（不重新登记，只清标签与内存态）。
-     * 暂停跟随与日程放宽两套记录都要走一遍恢复。
+     * 暂停跟随要恢复，指令占着的加班也要释放（没有别的持有者了才会恢复原日程）。
      */
     private static void restoreFromReload(UUID maidId, EntityMaid maid, MoveOrderData stored, String reason) {
         if (stored.followSuspension() != null) {
@@ -593,12 +423,7 @@ public final class MoveDirectiveManager {
         } else {
             SUSPENSIONS.remove(maidId);
         }
-        if (stored.originalSchedule() != null) {
-            SCHEDULE_RELIEF.put(maidId, stored.originalSchedule());
-            restoreScheduleRelief(maidId, maid, reason);
-        } else {
-            SCHEDULE_RELIEF.remove(maidId);
-        }
+        OvertimeManager.release(maidId, maid, OvertimeHolder.ORDER, reason);
         clearOrderRuntimeState(maidId);
         MoveOrderNbt.clear(maid.getPersistentData());
     }
@@ -623,7 +448,7 @@ public final class MoveDirectiveManager {
             if (order == null) {
                 continue;
             }
-            EntityMaid maid = findMaid(server, maidId);
+            EntityMaid maid = MaidLookup.find(server, maidId);
             if (maid == null || maid.isRemoved() || !maid.isAlive()
                     || !(maid.level() instanceof ServerLevel level)) {
                 // 女仆死亡/被移除/所在维度已卸载：指令失效（恢复记录保留在标签里，重新加载时处理）
@@ -695,12 +520,10 @@ public final class MoveDirectiveManager {
             removeOrder(maid.getUUID(), maid, "cancel-order");
             return;
         }
-        // 放宽日程期间的"外部改动检测"：玩家在界面里或用主模组的 switch_schedule 工具把日程
-        // 改成了别的值。视为玩家接管：丢掉保存的原日程、不恢复；移动类指令本身照旧继续。
-        boolean scheduleTakenOver = reconcileScheduleRelief(maid.getUUID(), maid, "external-change");
         if (order.action() == MoveAction.WORK_TIME) {
-            // work_time 的唯一作用就是放宽日程，被玩家覆盖后它已经没有意义：结束指令
-            if (scheduleTakenOver) {
+            // work_time 的唯一作用就是让她加班。加班被玩家接管（日程被改成别的值，加班管理器已经丢掉记录）后
+            // 它已经没有意义：结束指令。移动类指令则不受影响，照旧继续。
+            if (!OvertimeManager.holds(maid.getUUID(), OvertimeHolder.ORDER)) {
                 removeOrder(maid.getUUID(), maid, "external-change");
                 return;
             }
@@ -974,17 +797,6 @@ public final class MoveDirectiveManager {
         }
         LivingEntity target = resolveTarget(level, order);
         return target == null ? null : target.getName().getString();
-    }
-
-    @Nullable
-    private static EntityMaid findMaid(MinecraftServer server, UUID maidId) {
-        for (ServerLevel level : server.getAllLevels()) {
-            Entity entity = level.getEntity(maidId);
-            if (entity instanceof EntityMaid maid) {
-                return maid;
-            }
-        }
-        return null;
     }
 
     private static String reasonId(MoveProgress.StuckReason reason) {

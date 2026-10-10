@@ -111,10 +111,11 @@
 | `maid_cancel` | （无） | 取消当前指令（被暂停的跟随、被放宽的日程都会恢复） |
 
 - 指令默认持续 10 分钟，最长默认 1 小时（均可配置）；玩家表示"一直这样"时模型会设为**永久**，永久指令会通过工具结果、模型上下文和女仆每 10 分钟一次的自言自语多重提醒玩家。
-- 移动类指令生效期间，只要女仆没在睡觉，日程会被临时改成全天工作，结束后恢复（`MoveForceWorkSchedule`）。
+- 移动类指令生效期间，只要女仆没在睡觉，就会让她"加班"：日程被临时改成全天工作，结束后恢复（`MoveForceWorkSchedule`）。
+- 玩家让女仆切换工作任务、而她本来不在工作时间时，也会让她加班（不再回答"现在不是工作时间"）；切到待命任务，或一段时间没有新指令后，日程自动恢复（`OvertimeTaskSwitchEnabled` / `OvertimeTaskHoldSeconds`）。加班期间你手动改日程会被视为接管，不会再改回去。
 - 路走不通时：距离不太远就传送到位，太远就放弃并让女仆说一句话（`MoveTeleportFallback` / `MoveTeleportMaxDistance`）。
 - 指令与暂停状态存在女仆自己的数据里，服务器重启后会继续生效或自动恢复；你在界面里手动改了模式，指令会自动终止，不会覆盖你的修改。
-- 相关配置在 `move` 分组与配置界面里：`MoveEnabled`、`MoveDefaultDurationSeconds`、`MoveMaxDurationSeconds`、`MoveMaxActivePerOwner`、`MoveAllowPermanent`、`MovePermanentReminderMinutes`、`MoveForceWorkSchedule`、`MoveTeleportFallback`、`MoveTeleportMaxDistance`。
+- 相关配置在 `move` 分组与配置界面里：`MoveEnabled`、`MoveDefaultDurationSeconds`、`MoveMaxDurationSeconds`、`MoveMaxActivePerOwner`、`MoveAllowPermanent`、`MovePermanentReminderMinutes`、`MoveForceWorkSchedule`、`MoveTeleportFallback`、`MoveTeleportMaxDistance`；加班在 `overtime` 分组：`OvertimeTaskSwitchEnabled`、`OvertimeTaskHoldSeconds`。
 
 ### 女仆转告（改版新增，需搭配改版 Self Talk）
 

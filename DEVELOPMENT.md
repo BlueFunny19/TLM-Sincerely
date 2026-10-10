@@ -599,3 +599,15 @@ Remove-Item run\config\tlm_sincerely* -Force
 - **模型传错工具时给提示而不是报"未知"**：`maid_move` 收到 `guard` / `work_time` / `cancel` 时返回 `MoveText.wrongTool`（指明该用哪个工具），小模型下一轮就能改对。日志里 reason=`wrong-tool` 可以统计这种情况有多常见。
 - **顺手修的两个小问题**：英文对话下"永久指令已生效"的文字里混进了硬编码的中文动作描述（原来用 `detail()` 拼中文再传给 `startedPermanent`），现在统一走 `MoveText.orderVerb(zh, ...)`；`MoveDefaultDurationSeconds` 大于 `MoveMaxDurationSeconds` 时缺省时长原来不受上限约束，现在由纯函数 `MoveMath.resolveDurationSeconds` 一并夹住（有单测）。
 - **验证状态**：云端 Gradle 全量构建通过，190 个单测 0 失败（新增 `MoveMath.resolveDurationSeconds` 的 3 个）。**未做实机验证**：四个工具的参数 schema 在真实模型接口上的表现（尤其是 `maid_cancel` 只有一个可选参数）、小模型选工具的准确率、拆分前后女仆行为是否一致。
+
+### 2026-10-10 加班 T5a：临时改日程收归 `ai/overtime/OvertimeManager`
+
+- **为什么把"临时改成全天工作"从指令里拿出来**：原来原日程存在 `MoveOrderData.originalSchedule`、内存里的 `SCHEDULE_RELIEF`、`work_time` 又单独走一遍，三份状态只能靠"指令还在"这一个前提保持一致；而"玩家让她在晚上切换工作任务"根本没有指令可以挂。现在改日程的唯一主人是 `OvertimeManager`：一张 `UUID → State(原日程, 持有者集合, 切换任务到期 tick)` 的表，持有者是 `ORDER`（一条生效中的移动类指令）和 `WORK_TASK`（切换工作任务）。**最后一个持有者释放才恢复日程**。
+- **沿用"状态守卫"的全部约定**（与暂停跟随一致，判定在纯函数 `ScheduleRelief` 里，有单测）：已在加班就沿用旧记录（绝不把已经被改成 ALL 的日程当成原日程再存）；睡觉 / 本来就是 ALL / 配置不允许时不动；加班期间日程不再是 ALL = 玩家接管，丢记录不恢复；女仆不在场时 `release` 直接返回、状态原样留到重新加载；`clear()`（服务端停止）只清内存。
+- **接入点是"重定向主模组那一次 `getScheduleDetail()` 调用"**（`SwitchWorkTaskToolMixin`，`@Redirect` + `require = 0`）：读字节码确认 `SwitchWorkTaskTool#onCall` 里恰好只有这一处调用，顺序是 `setTask` → `onFunctionCallSwitch` → `getScheduleDetail()`，非 WORK 就直接返回"不在工作时间"。我们批准加班时返回 `Activity.WORK`，主模组后面的逻辑（含设置攻击目标）就按工作时间正常跑完；不批准（睡觉中、配置关闭、玩家刚改过日程）就原样返回真实活动，行为和以前一样。比"事后改返回字符串"干净：事后改会重复 `addToolResult`。
+- **"活干完了"没做成真正的检测**：`priority/detection` 的检测器是给调度器设计的（有逐 tick 的方块 / 寻路预算和跨周期的扫描游标），随手拿来按需调用，农耕类检测器拿不到游标会一直返回 `BLOCK_BUDGET_EXHAUSTED`，等于没用。所以切换任务触发的加班用"切到待命任务 / `OvertimeTaskHoldSeconds` 内没有新的切换"代替，并在文档里明说。以后若要做，应该复用调度器已经缓存的 `MaidDetectionCache` 结果，而不是另起扫描。
+- **`ORDER` 持有者的兜底**：`OvertimeManager.onServerTick` 里发现状态占着 `ORDER` 但 `MoveDirectiveManager.isActive` 为 false（指令数据读不出来、被丢弃等）就释放，免得女仆一直卡在全天工作。`WORK_TIME` 指令则反过来：它的唯一作用是加班，所以 `step` 里发现加班管理器已不再持有 `ORDER`（玩家接管）就结束指令。
+- **加载顺序不能换**：`SincerelyMod.onEntityJoinLevel` 必须先 `OvertimeManager.onMaidLoaded` 再 `MoveDirectiveManager.onMaidLoaded`，因为指令到期 / 数据不可信时会走 `restoreFromReload` → `release(ORDER)`，那时加班状态必须已经装回内存。
+- **旧存档兼容**：旧版本把原日程写在指令标签的 `originalSchedule` 键里。`MoveOrderData` 去掉该字段、`MoveOrderNbt` 不再写它，但保留 `readLegacyOriginalSchedule` / `stripLegacyOriginalSchedule`：`OvertimeManager.onMaidLoaded` 在没有自己的标签时接收一次并立即去掉旧键，免得之后重复接收。
+- **`MaidLookup`**：把散落的"按 UUID 在所有维度找女仆"收成一个小工具（`MoveDirectiveManager`、`OvertimeManager` 在用）。
+- **验证状态**：云端 Gradle 全量构建通过；新增 `ScheduleTimelineTest`（6）、`OvertimeNbtTest`（11），并更新 `MoveOrderDataTest` / `MoveOrdersTest` / `MoveOrderNbtTest`。**未做实机验证**：`SwitchWorkTaskToolMixin` 的 `@Redirect` 能否在真实环境里命中（`require = 0`，失败只会退回"不在工作时间"）、加班期间主模组日程刷新与我们 `setSchedule` 的交互、重启后的恢复时序。

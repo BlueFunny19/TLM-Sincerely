@@ -182,7 +182,7 @@ public class MaidMoveTool extends MoveToolBase<MaidMoveTool.Result> {
         if (maid.isHomeModeEnable() && action != MoveAction.STAY) {
             message = message + " " + MoveText.homeModeNote(zh);
         }
-        String scheduleNote = scheduleNote(zh, placement.schedule());
+        String scheduleNote = scheduleNote(zh, placement.overtime());
         if (!scheduleNote.isEmpty()) {
             message = message + " " + scheduleNote;
         }

@@ -1,31 +1,30 @@
-package com.github.tartaricacid.tlm_sincerely.ai.move;
+package com.github.tartaricacid.tlm_sincerely.ai.overtime;
 
 import org.jetbrains.annotations.Nullable;
 
 /**
- * "临时放宽工作时间"（把女仆日程临时改成 TLM 的 {@code MaidSchedule.ALL}）的纯逻辑判定。
+ * "加班"（把女仆日程临时改成 TLM 的 {@code MaidSchedule.ALL}）的纯逻辑判定。
  *
- * <p>为什么需要：玩家没有给女仆设置工作坐标时，夜里主模组的日程行为不是"工作时间"，
- * 移动指令会被日程拦下、切换工作任务也会回答"不在工作时间"。所以移动类指令在生效期间
- * （见 {@link MoveAction#needsScheduleRelief()}）只要女仆不是在睡觉，就把日程临时改成全天工作，
- * 指令结束时再恢复。
+ * <p>为什么需要：夜里主模组的日程行为不是"工作时间"，移动指令会被日程拦下、
+ * 切换工作任务也会回答"不在工作时间"。所以玩家要女仆干活（移动 / 守护 / 切换工作任务）时，
+ * 只要她不是在睡觉，就把日程临时改成全天工作，活干完（或指令结束）时再恢复。
  *
- * <p>这套判定与暂停跟随（{@link FollowSuspension}）一样是"状态守卫"：保存原状态 → 暂停 →
- * 恢复 → 持久化 → 外部改动检测 → 替换时不重复保存。它不引用任何 Minecraft / TLM 类型
+ * <p>这套判定与暂停跟随（{@code FollowSuspension}）一样是"状态守卫"：保存原状态 → 改动 →
+ * 恢复 → 持久化 → 外部改动检测 → 重复触发时不重复保存。它不引用任何 Minecraft / TLM 类型
  * （原日程只以枚举 {@code name()} 字符串出现），因此可以在 JUnit 里直接跑。
  *
- * <p><b>建立指令时的规则</b>（{@link #decide}）：
+ * <p><b>开始加班时的规则</b>（{@link #decide}）：
  * <ol>
- *   <li>这只女仆已经有"原日程"记录且当前日程仍是 ALL → {@link Action#REUSE} 沿用旧记录，
- *       <b>绝不能</b>把已经被改成 ALL 的日程当成原日程再存一次（否则指令结束后永远恢复不回去）；</li>
+ *   <li>这只女仆已经在加班（有"原日程"记录）且当前日程仍是 ALL → {@link Action#REUSE} 沿用旧记录，
+ *       <b>绝不能</b>把已经被改成 ALL 的日程当成原日程再存一次（否则结束后永远恢复不回去）；</li>
  *   <li>正在睡觉 → {@link Action#UNCHANGED}：不改、也不保存；</li>
  *   <li>当前日程本来就是 ALL → {@link Action#UNCHANGED}：不改、不保存（结束时也没有需要恢复的东西）；</li>
- *   <li>配置关闭（{@code MoveForceWorkSchedule}，{@code work_time} 自己不受影响）→ {@link Action#UNCHANGED}；</li>
+ *   <li>配置不允许（例如 {@code MoveForceWorkSchedule} 关闭）→ {@link Action#UNCHANGED}；</li>
  *   <li>其余情况 → {@link Action#FORCE_ALL}：保存原日程并改成全天工作。</li>
  * </ol>
  *
- * <p><b>结束指令时的规则</b>（{@link #decideRestore}）：保存过原日程、而当前日程已经不是 ALL，
- * 说明玩家在放宽期间自己改了日程（界面 / 主模组的 {@code switch_schedule} 工具）——
+ * <p><b>结束加班时的规则</b>（{@link #decideRestore}）：保存过原日程、而当前日程已经不是 ALL，
+ * 说明玩家在加班期间自己改了日程（界面 / 主模组的 {@code switch_schedule} 工具）——
  * 视为玩家接管，不恢复，直接丢弃记录。
  */
 public final class ScheduleRelief {

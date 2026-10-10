@@ -1,5 +1,6 @@
 package com.github.tartaricacid.tlm_sincerely.memory;
 
+import com.github.tartaricacid.tlm_sincerely.ai.MaidLookup;
 import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MemoryConfig;
 import com.github.tartaricacid.tlm_sincerely.memory.MaidMemory.MemoryEntry;
@@ -10,7 +11,6 @@ import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -150,7 +150,7 @@ public final class MemoryMaintenanceManager {
             while (it.hasNext()) {
                 UUID uuid = it.next();
                 it.remove();
-                EntityMaid maid = findMaid(server, uuid);
+                EntityMaid maid = MaidLookup.find(server, uuid);
                 if (maid != null) {
                     MemoryChatTracker.reconcilePendingSubmission(uuid,
                             maid.getAiChatManager().historySummaryRunning);
@@ -175,7 +175,7 @@ public final class MemoryMaintenanceManager {
                 boolean timeout = startTime != null && (now - startTime) > TIDY_TIMEOUT_MS;
                 if (timeout) {
                     LOGGER.warn("Maid {} memory maintenance timed out, terminating this maintenance generation", uuid);
-                    finishTidy(findMaid(server, uuid), uuid);
+                    finishTidy(MaidLookup.find(server, uuid), uuid);
                     MemoryChatTracker.releaseMaintenanceChain(uuid);
                 }
             }
@@ -313,15 +313,5 @@ public final class MemoryMaintenanceManager {
         MemoryChatTracker.clear();
         tickCounter = 0;
         LOGGER.info("MemoryMaintenanceManager cleared runtime state");
-    }
-
-    private static EntityMaid findMaid(MinecraftServer server, UUID uuid) {
-        for (ServerLevel level : server.getAllLevels()) {
-            Entity entity = level.getEntity(uuid);
-            if (entity instanceof EntityMaid maid) {
-                return maid;
-            }
-        }
-        return null;
     }
 }

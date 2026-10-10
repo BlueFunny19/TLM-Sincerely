@@ -2,10 +2,10 @@ package com.github.tartaricacid.tlm_sincerely.ai.tool;
 
 import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveAction;
-import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveMath;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveOrderPlacer;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveText;
+import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeManager;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
 import com.github.tartaricacid.touhoulittlemaid.ai.service.function.schema.parameter.ObjectParameter;
 import com.github.tartaricacid.touhoulittlemaid.ai.service.function.schema.parameter.Parameter;
@@ -72,7 +72,7 @@ public class MaidWorkTimeTool extends MoveToolBase<MaidWorkTimeTool.Result> {
             logRejected(ctx, "sleeping", "");
             return MoveText.workTimeSleeping(zh, ctx.maidName());
         }
-        if (MoveDirectiveManager.isScheduleAll(maid)) {
+        if (OvertimeManager.isScheduleAll(maid)) {
             logRejected(ctx, "schedule-already-all", "");
             return MoveText.workTimeAlready(zh, ctx.maidName());
         }
