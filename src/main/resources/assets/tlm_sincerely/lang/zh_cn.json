@@ -265,5 +265,7 @@
     "config.tlm_sincerely.reply.pause_seconds": "默认停顿（秒）",
     "config.tlm_sincerely.reply.pause_seconds.tooltip": "没有写秒数的 <等待> 标记让后面的话晚多少秒显示（0.3~10）",
     "config.tlm_sincerely.reply.pause_max_total_seconds": "单条回复停顿上限（秒）",
-    "config.tlm_sincerely.reply.pause_max_total_seconds.tooltip": "一条回复里所有停顿加起来最多拖多久（1~60 秒），超出的标记不再往后拖"
+    "config.tlm_sincerely.reply.pause_max_total_seconds.tooltip": "一条回复里所有停顿加起来最多拖多久（1~60 秒），超出的标记不再往后拖",
+    "task.tlm_sincerely.guard": "守护",
+    "task.tlm_sincerely.guard.desc": "按「守护名单」保护别人：名单按优先级排列，每一项有自己的条件（一直守，或对方血量低于多少才守）。\n名单里暂时没人可守时，就是一只普通的近战女仆。\n可以对女仆说话来调整名单，也可以在聊天里让她「守护某人」。"
 }

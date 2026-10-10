@@ -17,7 +17,7 @@ import java.util.List;
  * 守护指令里"把威胁目标的敌对生物设为攻击目标"的那一部分（无状态）。
  *
  * <p>只有女仆当前的任务是战斗类任务（{@link IAttackTask}）时才会主动攻击，不擅自换任务；
- * 工具已通过 {@code guardNoCombatNote} 告诉模型"否则只能守在身边"。
+ * 守护任务（{@code GuardTask}）本身就是战斗类任务，所以按守护名单守护的女仆总是会出手。
  */
 public final class GuardCombat {
     /** 守护时搜索敌对生物的最小间隔（tick）。 */

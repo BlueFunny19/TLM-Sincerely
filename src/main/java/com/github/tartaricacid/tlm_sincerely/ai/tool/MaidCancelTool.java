@@ -1,6 +1,8 @@
 package com.github.tartaricacid.tlm_sincerely.ai.tool;
 
 import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
+import com.github.tartaricacid.tlm_sincerely.ai.guard.GuardTaskDriver;
+import com.github.tartaricacid.tlm_sincerely.ai.guard.GuardText;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveText;
 import com.github.tartaricacid.touhoulittlemaid.ai.service.function.schema.parameter.ObjectParameter;
@@ -65,9 +67,14 @@ public class MaidCancelTool extends MoveToolBase<MaidCancelTool.Result> {
         LOGGER.info("[maid_move] cancel requested: maid={} name={} hadOrder={} suspensionRestored={} scheduleRestored={} reason={}",
                 shortId(ctx.maidId()), ctx.maidName(), cancel.hadOrder(), cancel.suspensionRestored(),
                 cancel.scheduleRestored(), safe(result.reason()));
-        String message = MoveText.cancelled(zh, ctx.maidName(), cancel.hadOrder());
+        // 守护任务：先撤了指令，再让她离开守护任务回到原来的任务（名单保留，下次接着用）
+        boolean leftGuard = GuardTaskDriver.leave(ctx.maid(), "cancelled");
+        String message = MoveText.cancelled(zh, ctx.maidName(), cancel.hadOrder() || leftGuard);
         if (cancel.hadOrder() && (cancel.suspensionRestored() || cancel.scheduleRestored())) {
             message = message + " " + MoveText.restoredNote(zh);
+        }
+        if (leftGuard) {
+            message = message + " " + GuardText.cancelledNote(zh, ctx.maid().getTask().getName().getString());
         }
         return message;
     }

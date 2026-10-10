@@ -52,33 +52,6 @@ public final class MoveText {
                 """.trim();
     }
 
-    /** {@code maid_guard}：守护某人。 */
-    public static String guardSummary(boolean zh) {
-        return zh ? """
-                让你守护某人：待在目标身边 distance 格以内，并攻击威胁目标的敌对生物。
-                什么时候用：玩家要你保护、守护、护送某人（主人，或同一主人名下的另一只女仆）时。
-                什么时候不用：只是走近某人请用 maid_move 的 approach；取消守护请用 maid_cancel 工具。
-                target 填 me（或"我"）表示你的主人，也可以填同一主人名下另一只女仆的名字；不能填你自己。
-                守护默认一直持续，没有时限，直到玩家让你取消；新指令（包括 maid_move、maid_work_time）会覆盖旧指令。
-                只有玩家明确要求"临时""守一会儿""守 N 分钟"时，才把 temporary 设为 true（默认限时 5 分钟），或直接用 duration_seconds 给出时长，到时间守护就自动结束。
-                没有要求临时的守护，你必须在回复里明确告诉玩家：你会一直守着，想让你停下只要跟你说一声。
-                只有在你当前的任务是战斗类任务时才会主动攻击，否则只会守在目标身边；需要战斗时，先用「切换工作任务」工具切换到战斗类任务。
-                只要你不是正在睡觉，守护期间你的日程都会被临时改成全天工作，结束后恢复原来的日程。
-                如果路走不通，距离不太远时系统会直接把你传送到位；距离太远就会放弃。无论哪种情况，系统都会替你在聊天栏里说一句话告诉玩家，你不用再重复说明。
-                """.trim() : """
-                Guard someone: stay within 'distance' blocks of the target and attack hostile mobs that threaten it.
-                Use it when: the player asks you to protect, guard or escort someone (your owner, or another maid of the same owner).
-                Do not use it when: you only need to walk up to someone (use maid_move with 'approach'), or to stop guarding (use the maid_cancel tool).
-                'target' is 'me' for your owner, or the name of another maid of the same owner; never yourself.
-                Guarding lasts until the player cancels it, with no time limit, by default; a new order (including maid_move and maid_work_time) replaces the old one.
-                Only when the player explicitly asks for it to be temporary ("guard for a while", "guard for 5 minutes") set 'temporary' to true (it then lasts 5 minutes by default) or give the length with 'duration_seconds'; guarding ends by itself when the time is up.
-                For guarding that was not asked to be temporary you MUST tell the player in your reply that you will keep guarding and that they only need to tell you when to stop.
-                You only attack actively if your current task is a combat task; otherwise you just stay beside the target. If fighting is needed, first switch to a combat task with the work-task tool.
-                Whenever you are not asleep your schedule is switched to "work around the clock" while you guard, and your original schedule is restored afterwards.
-                If the path is blocked, you are teleported into place when the distance is not too large; when it is too far the order is dropped. Either way the system says a line in chat on your behalf, so you do not need to explain it again.
-                """.trim();
-    }
-
     /** {@code maid_work_time}：临时改成全天工作。 */
     public static String workTimeSummary(boolean zh) {
         return zh ? """
@@ -150,12 +123,6 @@ public final class MoveText {
         return zh
                 ? "距离（格，1~64）。approach 默认 3；retreat 默认 16。"
                 : "Distance in blocks (1-64). Defaults: approach 3, retreat 16.";
-    }
-
-    public static String guardDistanceDesc(boolean zh) {
-        return zh
-                ? "守护半径（格，1~64），默认 5：待在目标身边这么远以内。"
-                : "Guard radius in blocks (1-64), default 5: how close to the target you stay.";
     }
 
     public static String durationDesc(boolean zh, int maxSeconds) {
@@ -250,11 +217,6 @@ public final class MoveText {
     public static String homeModeNote(boolean zh) {
         return zh ? "（注意：她处于 Home 模式，活动范围受限，可能走不到目标。）"
                 : "(Note: she is in Home mode and her range is limited, so she may not be able to reach the target.)";
-    }
-
-    public static String guardNoCombatNote(boolean zh) {
-        return zh ? "（注意：她当前的任务不是战斗类任务，所以只会守在目标身边，不会主动攻击；要战斗需要先切换到战斗类任务。）"
-                : "(Note: her current task is not a combat task, so she will only stay beside the target and will not attack; switch to a combat task first if fighting is needed.)";
     }
 
     // ===== 女仆自己说出口的话（寻路失败的兜底提示，直接显示在聊天栏里，不经过 LLM） =====

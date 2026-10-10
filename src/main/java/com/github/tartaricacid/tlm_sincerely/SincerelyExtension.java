@@ -1,6 +1,9 @@
 package com.github.tartaricacid.tlm_sincerely;
 
 import com.github.tartaricacid.tlm_sincerely.ai.context.MaidAutoWorkContext;
+import com.github.tartaricacid.tlm_sincerely.ai.context.MaidGuardContext;
+import com.github.tartaricacid.tlm_sincerely.ai.guard.GuardTask;
+import com.github.tartaricacid.tlm_sincerely.ai.guard.GuardTaskDataKeys;
 import com.github.tartaricacid.tlm_sincerely.ai.context.MaidMemoryContext;
 import com.github.tartaricacid.tlm_sincerely.ai.context.MaidMoveContext;
 import com.github.tartaricacid.tlm_sincerely.ai.tool.AutoWorkTool;
@@ -17,6 +20,7 @@ import com.github.tartaricacid.touhoulittlemaid.ai.agent.tool.ToolRegister;
 import com.github.tartaricacid.touhoulittlemaid.api.ILittleMaid;
 import com.github.tartaricacid.touhoulittlemaid.api.LittleMaidExtension;
 import com.github.tartaricacid.touhoulittlemaid.entity.data.TaskDataRegister;
+import com.github.tartaricacid.touhoulittlemaid.entity.task.TaskManager;
 
 @LittleMaidExtension
 public class SincerelyExtension implements ILittleMaid {
@@ -37,8 +41,14 @@ public class SincerelyExtension implements ILittleMaid {
     }
 
     @Override
+    public void addMaidTask(TaskManager manager) {
+        manager.add(new GuardTask());
+    }
+
+    @Override
     public void registerTaskData(TaskDataRegister register) {
         register.register(AutoWorkTaskDataKeys.STATE_KEY);
+        register.register(GuardTaskDataKeys.GUARD_KEY);
     }
 
     @Override
@@ -55,5 +65,6 @@ public class SincerelyExtension implements ILittleMaid {
                 "女仆当前生效的移动指令（maid_move）：动作描述、是否永久、剩余时间",
                 true);
         register.registerContext("tlm_sincerely_move", new MaidMoveContext());
+        register.registerContext("tlm_sincerely_move", new MaidGuardContext());
     }
 }

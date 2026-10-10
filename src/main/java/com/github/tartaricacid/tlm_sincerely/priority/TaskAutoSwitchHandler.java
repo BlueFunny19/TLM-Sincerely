@@ -1,6 +1,7 @@
 package com.github.tartaricacid.tlm_sincerely.priority;
 
 import com.github.tartaricacid.tlm_sincerely.SincerelyExtension;
+import com.github.tartaricacid.tlm_sincerely.ai.guard.GuardTaskDriver;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
 import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeHolder;
 import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeManager;
@@ -269,8 +270,10 @@ public final class TaskAutoSwitchHandler {
             observeMaidBusy(maid, cache, state, currentTick, generation);
             // maid_move：移动指令生效期间跳过本只女仆的自动切换（上面的 busy 观察照常）；
             // 玩家让她加班干的活（切换工作任务触发的加班）同理，别让调度器半路把任务换走
+            // 守护任务同理：玩家（或模型）明确让她守护，调度器不能半路把任务换走
             if (MoveDirectiveManager.isActive(maid.getUUID())
-                    || OvertimeManager.holds(maid.getUUID(), OvertimeHolder.WORK_TASK)) {
+                    || OvertimeManager.holds(maid.getUUID(), OvertimeHolder.WORK_TASK)
+                    || GuardTaskDriver.isGuarding(maid)) {
                 continue;
             }
             boolean attackHandled = DECISION_ENGINE.handleExperimentalAttackPreempt(maid, sortedTasks,

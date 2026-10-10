@@ -352,7 +352,7 @@ tlm_sincerely/
 
 - 用自然语言指挥女仆“靠近我 / 远离我 / 去某个地方 / 保护某人 / 在原地待着 / 回家 / 临时改成全天工作”：女仆理解后调用下面四个工具之一，在限定时间内执行。它们共用同一套指令登记、暂停跟随与恢复机制：同一只女仆同时只有一条指令，新指令（不论来自哪个工具）覆盖旧指令。
 - `maid_move` 有五个动作：`approach`（走近目标并保持在 `distance` 格内）、`retreat`（远离目标并保持在 `distance` 格外）、`goto`（前往坐标 `x` / `y` / `z`）、`stay`（留在原地，同时不再跟随主人）、`go_home`（立刻传送回自己的工作坐标并进入居家模式）。模型把 `guard` / `work_time` / `cancel` 传给它时会收到"请改用某某工具"的提示，而不是只回"未知动作"。
-- `maid_guard`：守在目标身边 `distance` 格内（默认 5），并攻击威胁目标的敌对生物。守护本质上是"跟着一个目标并战斗"，所以不放在 `maid_move` 里。
+- `maid_guard`：编辑女仆的**守护名单**，并让她进入独立的“守护”任务（`GuardTask`，战斗能力继承近战任务）。名单每一项 = 目标 + 条件（`always` 一直守 / `hp_below` 对方血量低于 `threshold` 点才守 / `hp_percent_below` 低于 `threshold`% 才守，2 点 = 1 颗心）+ 守护半径 `distance`（默认 5），名单顺序就是优先级（`priority` 取 `highest` / `lowest` / `keep`）。参数 `action`：`add`（默认）、`remove`、`clear`、`list`。守谁由 `GuardDecider` 决定：名单里第一个“目标在场且条件成立”的项（血量条件带滞回：点数 +4、百分比 +15 个百分点之内不撤，避免在门槛上下来回切）；`GuardTaskDriver` 每 20 tick 对账一次，把结果翻译成原有的 `GUARD` 指令（跟随、攻击、卡住传送、加班全部沿用指令那一套）。名单与限时存在女仆身上（`GuardTaskDataKeys`，TLM 任务数据），进入守护任务前的任务会被记住，结束 / `maid_cancel` 后回去；名单为空或没人可守时她是普通近战女仆。守护不是 `maid_move`，因为它是“跟着目标并战斗”且有自己的名单。
 - `maid_work_time`：不移动，只把日程临时改成“全天工作”。
 - `maid_cancel`：取消当前指令。只有一个可选参数 `reason`（仅写入日志）：主 Mod 的工具都至少带一个参数，没有先例证明完全无参数的工具能被各家模型接口接受，所以不冒这个险。
 - 目标 `target` 可填 `me`（或「我」）表示主人，也可以填同一主人名下另一只女仆的名字；名字匹配规则与聊天栏一致（先精确、否则子串、多命中取最近），不能填自己。
@@ -523,7 +523,7 @@ tlm_sincerely/
 | `run_command` | 由 LLM 生成命令 | 以主人身份执行 Minecraft 命令 |
 | `tell_maid` | 参数 `target`、`message` | 把一句话转告给同主人名下另一只女仆并请她回应；需安装并开启 Maid Self-Talk 的互聊，见「三、5. 女仆转告工具」 |
 | `maid_move` | `approach`、`retreat`、`goto`、`stay`、`go_home` | 走近 / 远离 / 前往坐标 / 留在原地（默认一直生效，玩家明确要求临时才限时），或永久地回家，见「三、6. 移动指令」 |
-| `maid_guard` | 参数 `target`、`distance`、`temporary`、`duration_seconds` | 守在某人身边并攻击威胁他的敌对生物（默认一直生效），见「三、6. 移动指令」 |
+| `maid_guard` | 参数 `action`、`target`、`condition`、`threshold`、`priority`、`distance`、`temporary`、`duration_seconds` | 编辑守护名单（谁、什么条件、什么优先级）并进入守护任务（默认一直生效），见「三、6. 移动指令」 |
 | `maid_work_time` | 参数 `temporary`、`duration_seconds` | 把日程改成全天工作（默认一直生效，玩家明确要求临时才限时），见「三、6. 移动指令」 |
 | `maid_cancel` | 可选参数 `reason`（仅写日志） | 取消当前指令并恢复被临时改动的状态，见「三、6. 移动指令」 |
 
