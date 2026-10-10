@@ -1,5 +1,6 @@
 package com.github.tartaricacid.tlm_sincerely.command;
 
+import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
 import com.github.tartaricacid.tlm_sincerely.chatbar.MaidFinder;
 import com.github.tartaricacid.tlm_sincerely.chatbar.MaidFinder.FindResult;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MemoryConfig;
@@ -35,7 +36,13 @@ public final class MemoryCommand {
     private static final String DEFAULT_LANGUAGE = "en_us";
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-    private static final String SUMMARIZE_PROMPT = """
+    private static final String SUMMARIZE_PROMPT_ZH = """
+            请回顾我们到目前为止的对话，用 tlm_memory 的 remember 记下你漏掉的内容：\
+            玩家要求你记住的事、长期有效的喜好、个人情况、重要事件。\
+            key 用简短的中文词语，value 用一句带背景的简洁的话。\
+            不要记闲聊和转瞬即逝的游戏状态。""";
+
+    private static final String SUMMARIZE_PROMPT_EN = """
             Please review our conversation so far and use tlm_memory remember \
             to record anything you missed: things the player asked you to remember, \
             lasting preferences, personal facts, significant events. \
@@ -370,12 +377,14 @@ public final class MemoryCommand {
         }
 
         String maidName = maid.getName().getString();
-        String language = maid.getAiChatManager().getTTSLanguage();
+        // 对话语言取玩家的客户端语言（与主 Mod 聊天界面一致），不能用女仆的 TTS 语言
+        String language = player.getLanguage();
         if (language == null || language.isEmpty()) {
             language = DEFAULT_LANGUAGE;
         }
         ChatClientInfo clientInfo = new ChatClientInfo(language, maidName, List.of());
-        maid.getAiChatManager().chat(SUMMARIZE_PROMPT, clientInfo, player);
+        maid.getAiChatManager().chat(PromptLang.pick(language, SUMMARIZE_PROMPT_ZH, SUMMARIZE_PROMPT_EN),
+                clientInfo, player);
 
         player.sendSystemMessage(Component.translatable(
                 "command.tlm_sincerely.memory.summarize_sent", maidName)

@@ -5,6 +5,12 @@
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?style=flat-square)](https://adoptium.net/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
+> ⚠️ **AI 辅助开发声明 / AI-assisted development notice**
+>
+> 本项目的 `1.20.1forge` 分支（即本分支）是在原项目基础上，借助 AI（主要是 Claude 与 DeepSeek 等模型）以 **vibe coding** 的方式添加定制功能的版本。代码有进行人工审核，但**仍然存在风险**（可能有未被发现的错误、与其他模组的兼容问题等）。**如果你介意，请不要使用本分支。**
+>
+> This branch (`1.20.1forge`) adds custom features on top of the original project through AI-assisted *vibe coding* (mainly Claude and DeepSeek models). The code has been reviewed by a human, but **risks remain** (undiscovered bugs, compatibility issues with other mods, and so on). **If that matters to you, please do not use this branch.**
+
 《车万女仆：真心为你》是 [Touhou Little Maid / 车万女仆](https://www.curseforge.com/minecraft/mc-mods/touhou-little-maid) 的 Forge 1.20.1 附属模组，围绕女仆对话、工作调度和长期记忆提供增强功能。（1.21.1 NeoForge 版本由 `1.21.1neo` 分支维护）
 目前实现了：
 - 在聊天栏中与女仆agent进行对话

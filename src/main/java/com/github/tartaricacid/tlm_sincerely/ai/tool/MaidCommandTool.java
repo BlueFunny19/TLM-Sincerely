@@ -1,5 +1,6 @@
 package com.github.tartaricacid.tlm_sincerely.ai.tool;
 
+import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
 import com.github.tartaricacid.tlm_sincerely.command.CommandAuditLog;
 import com.github.tartaricacid.tlm_sincerely.command.CommandClassifier;
 import com.github.tartaricacid.tlm_sincerely.command.CommandConfirmationService;
@@ -38,7 +39,17 @@ import java.util.concurrent.CompletableFuture;
 public class MaidCommandTool implements ITool<MaidCommandTool.Result> {
     private static final String TOOL_ID = "run_command";
 
-    private static final String TOOL_DESC = """
+    private static final String TOOL_DESC_ZH = """
+            以女仆主人（拥有这只女仆的玩家）的身份执行一条 Minecraft 命令。
+            命令永远以主人的身份运行，而不是女仆：位置、朝向、维度、相对坐标、'@s' 和权限等级都属于主人，所以 '/give @s ...' 是把物品给主人，'~ ~ ~' 是主人所在的位置。
+            只有在玩家明确要求某个游戏操作、而且没有专用工具可用时才使用（给物品、传送、清除生物、天气、时间、填充方块等）。
+            参数 'command' 必须恰好是一条纯文本命令，不要带开头的斜杠，也不能有换行。
+            有些命令被永久禁止，根本无法执行；有些有破坏性的命令需要主人先在聊天栏里确认，所以结果可能是被取消或超时，而不是命令的输出。
+            主人必须在线：主人不在线时命令无法执行。
+            已经有专用工具的事情不要用本工具（切换女仆的工作任务、跟随状态、女仆的记忆）。
+            """.trim();
+
+    private static final String TOOL_DESC_EN = """
             Execute one Minecraft command as the maid's owner (the player who owns this maid).
             The command is run with the owner's identity, never the maid's: position, rotation, dimension, relative coordinates, '@s' and the permission level all belong to the owner, so '/give @s ...' gives the item to the owner and '~ ~ ~' is the owner's position.
             Use it when the player explicitly asks for a game action that has no dedicated tool (giving items, teleporting, killing mobs, weather, time, filling blocks, ...).
@@ -59,15 +70,18 @@ public class MaidCommandTool implements ITool<MaidCommandTool.Result> {
 
     @Override
     public String summary(EntityMaid maid) {
-        return TOOL_DESC;
+        return PromptLang.pick(maid, TOOL_DESC_ZH, TOOL_DESC_EN);
     }
 
     @Override
     public Parameter parameters(ObjectParameter root, EntityMaid maid) {
         StringParameter command = StringParameter.create()
-                .setDescription("A single complete Minecraft command without a leading '/', for example "
-                        + "'give @s diamond 1' or 'execute run kill @e[type=zombie,distance=..10]'. "
-                        + "It must not contain line breaks; only one command per call.");
+                .setDescription(PromptLang.pick(maid,
+                        "一条完整的 Minecraft 命令，不要带开头的 '/'，例如 'give @s diamond 1' 或 "
+                                + "'execute run kill @e[type=zombie,distance=..10]'。不能包含换行，每次调用只能有一条命令。",
+                        "A single complete Minecraft command without a leading '/', for example "
+                                + "'give @s diamond 1' or 'execute run kill @e[type=zombie,distance=..10]'. "
+                                + "It must not contain line breaks; only one command per call."));
         root.addProperties("command", command);
         return root;
     }
@@ -89,8 +103,9 @@ public class MaidCommandTool implements ITool<MaidCommandTool.Result> {
      */
     @Override
     public LLMCallback onCall(String toolCallId, Result result, LLMCallback callback) {
-        return callback.addToolResult(
-                "This tool requires Touhou Little Maid 1.5.2 or newer; the command was not executed.",
+        return callback.addToolResult(PromptLang.pick(callback.getMaid(),
+                "此工具需要车万女仆 1.5.2 或更新版本；命令没有被执行。",
+                "This tool requires Touhou Little Maid 1.5.2 or newer; the command was not executed."),
                 toolCallId);
     }
 
@@ -137,15 +152,17 @@ public class MaidCommandTool implements ITool<MaidCommandTool.Result> {
             return completed(callback.addToolResult(
                     "No maid context is available for this tool call.", toolCallId));
         }
+        boolean zh = PromptLang.isChinese(PromptLang.of(maid));
         if (!(maid.level() instanceof ServerLevel serverLevel)) {
             return completed(callback.addToolResult(
-                    "Command execution is only available on the server side.", toolCallId));
+                    zh ? "命令只能在服务端执行。" : "Command execution is only available on the server side.", toolCallId));
         }
         MinecraftServer server = serverLevel.getServer();
 
         if (!MaidCommandConfig.COMMAND_TOOL_ENABLED.get()) {
             return completed(callback.addToolResult(
-                    "The command execution tool is disabled; the command was not executed.", toolCallId));
+                    zh ? "命令执行工具已被禁用；命令没有被执行。"
+                            : "The command execution tool is disabled; the command was not executed.", toolCallId));
         }
 
         int attempts = CommandRateLimiter.recordAttempt(callback);
@@ -154,12 +171,13 @@ public class MaidCommandTool implements ITool<MaidCommandTool.Result> {
             CommandAuditLog.log(maid, ownerOrNull(maid),
                     CommandAuditLog.Decision.RATE_LIMITED, 0, safeCommand(result.command()), null);
             return completed(callback.addToolResult(
-                    "Command attempt limit reached for this conversation (%d); the command was not executed."
+                    (zh ? "本次对话的命令尝试次数已达上限（%d 次）；命令没有被执行。"
+                            : "Command attempt limit reached for this conversation (%d); the command was not executed.")
                             .formatted(maxAttempts), toolCallId));
         }
 
         NormalizedCommand normalized = NormalizedCommand.of(result.command(),
-                MaidCommandConfig.MAX_COMMAND_LENGTH.get());
+                MaidCommandConfig.MAX_COMMAND_LENGTH.get(), zh);
         if (normalized.error() != null) {
             CommandAuditLog.log(maid, ownerOrNull(maid),
                     CommandAuditLog.Decision.INVALID, 0, safeCommand(result.command()), null);
@@ -172,7 +190,8 @@ public class MaidCommandTool implements ITool<MaidCommandTool.Result> {
             CommandAuditLog.log(maid, null,
                     CommandAuditLog.Decision.REJECTED_OWNER_OFFLINE, 0, command, null);
             return completed(callback.addToolResult(
-                    "The maid's owner is offline or unavailable, and commands only run with the owner's "
+                    zh ? "女仆的主人不在线或不可用，而命令只能以主人的身份运行；命令没有被执行。"
+                            : "The maid's owner is offline or unavailable, and commands only run with the owner's "
                             + "identity; the command was not executed.", toolCallId));
         }
 
@@ -181,7 +200,8 @@ public class MaidCommandTool implements ITool<MaidCommandTool.Result> {
             CommandAuditLog.log(maid, owner,
                     CommandAuditLog.Decision.BLOCKED_BLACKLIST, 0, command, classification.matchedName());
             return completed(callback.addToolResult(
-                    "Command unavailable: this command is permanently blocked by the server policy "
+                    zh ? "命令不可用：这条命令被服务器策略永久禁止，没有被执行。"
+                            : "Command unavailable: this command is permanently blocked by the server policy "
                             + "and was not executed.", toolCallId));
         }
 
@@ -192,7 +212,8 @@ public class MaidCommandTool implements ITool<MaidCommandTool.Result> {
                 CommandAuditLog.log(maid, owner, CommandAuditLog.Decision.INVALID, 0, command,
                         classification.matchedName());
                 return completed(callback.addToolResult(
-                        "The command confirmation service is unavailable; the command was not executed.",
+                        zh ? "命令确认服务不可用；命令没有被执行。"
+                                : "The command confirmation service is unavailable; the command was not executed.",
                         toolCallId));
             }
             if (service.isTrusted(owner.getUUID(), classification.matchedName())) {
@@ -237,24 +258,27 @@ public class MaidCommandTool implements ITool<MaidCommandTool.Result> {
      * breaks, tabs and over-long input.
      */
     private record NormalizedCommand(String command, String error) {
-        static NormalizedCommand of(String raw, int maxLength) {
+        static NormalizedCommand of(String raw, int maxLength, boolean zh) {
             if (raw == null) {
-                return invalid("<single command text>", "command is required");
+                return invalid(zh ? "<一条命令的文本>" : "<single command text>",
+                        zh ? "必须提供 command" : "command is required");
             }
             String value = raw.trim();
             if (value.startsWith("/")) {
                 value = value.substring(1).trim();
             }
             if (value.isEmpty()) {
-                return invalid("<single command text>", "command is required");
+                return invalid(zh ? "<一条命令的文本>" : "<single command text>",
+                        zh ? "必须提供 command" : "command is required");
             }
             if (value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0 || value.indexOf('\t') >= 0) {
-                return invalid("<one command in a single line>",
-                        "command must not contain line breaks or tabs");
+                return invalid(zh ? "<单行的一条命令>" : "<one command in a single line>",
+                        zh ? "command 不能包含换行或制表符" : "command must not contain line breaks or tabs");
             }
             if (value.length() > maxLength) {
-                return invalid("<command within " + maxLength + " characters>",
-                        "command is too long (max " + maxLength + " characters)");
+                return invalid(zh ? "<不超过 " + maxLength + " 个字符的命令>" : "<command within " + maxLength + " characters>",
+                        zh ? "command 太长（最多 " + maxLength + " 个字符）"
+                                : "command is too long (max " + maxLength + " characters)");
             }
             return new NormalizedCommand(value, null);
         }

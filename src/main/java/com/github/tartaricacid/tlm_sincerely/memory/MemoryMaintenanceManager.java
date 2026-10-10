@@ -1,5 +1,6 @@
 package com.github.tartaricacid.tlm_sincerely.memory;
 
+import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MemoryConfig;
 import com.github.tartaricacid.tlm_sincerely.memory.MaidMemory.MemoryEntry;
 import com.github.tartaricacid.touhoulittlemaid.ai.manager.entity.ChatClientInfo;
@@ -58,7 +59,15 @@ public final class MemoryMaintenanceManager {
 
     private static int tickCounter = 0;
 
-    private static final String TIDY_PROMPT = """
+    private static final String TIDY_PROMPT_ZH = """
+            你正在进行记忆整理。下面是全部 archive 记忆：
+            %s
+            找出描述【同一件事】的记忆分组，而不是仅仅话题相近的记忆。
+            对每一组，调用 tlm_memory 的 merge 操作（action=merge），传入来源 key 和一个合并后的 value，合并后的 value 要保留所有具体细节（谁、什么事、什么时候、在哪里）。
+            话题只是相近的不要合并。宁可条数少一些，也要合并得好。
+            如果没有需要合并的，就只回复"无需整理。"，不要调用任何工具。""";
+
+    private static final String TIDY_PROMPT_EN = """
             You are performing memory maintenance. Below is the full list of archived memories.
             %s
             Identify groups of entries that describe the SAME fact or event, not merely related topics.
@@ -213,12 +222,13 @@ public final class MemoryMaintenanceManager {
             }
         }
 
-        String tidyPrompt = TIDY_PROMPT.formatted(archiveList.toString());
-
-        String language = maid.getAiChatManager().getTTSLanguage();
+        // 对话语言取主人的客户端语言（与主 Mod 聊天界面一致），不能用女仆的 TTS 语言
+        String language = player.getLanguage();
         if (language == null || language.isEmpty()) {
             language = "en_us";
         }
+        String tidyPrompt = PromptLang.pick(language, TIDY_PROMPT_ZH, TIDY_PROMPT_EN)
+                .formatted(archiveList.toString());
         ChatClientInfo clientInfo = new ChatClientInfo(language, maid.getName().getString(), List.of());
 
         LOGGER.info("Maid {} starting memory maintenance", uuid);

@@ -3,7 +3,9 @@ package com.github.tartaricacid.tlm_sincerely.config;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.ChatBarConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MaidCommandConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MemoryConfig;
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.PriorityConfig;
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.RelayConfig;
 import net.minecraftforge.common.ForgeConfigSpec;
 
 public final class GeneralConfig {
@@ -15,6 +17,8 @@ public final class GeneralConfig {
         PriorityConfig.init(builder);
         MemoryConfig.init(builder);
         MaidCommandConfig.init(builder);
+        RelayConfig.init(builder);
+        MoveConfig.init(builder);
         CONFIG = builder.build();
         return CONFIG;
     }

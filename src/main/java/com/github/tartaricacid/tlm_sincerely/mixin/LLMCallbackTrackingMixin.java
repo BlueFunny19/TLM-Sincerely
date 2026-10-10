@@ -18,6 +18,9 @@ import java.util.List;
 
 @Mixin(value = LLMCallback.class, remap = false)
 public abstract class LLMCallbackTrackingMixin {
+    /** 附属 Mod Self Talk 的包前缀；按类名判断，避免对它产生编译期依赖。 */
+    private static final String SELF_TALK_PACKAGE = "com.maidmod.selftalk.";
+
     @Shadow
     @Final
     protected EntityMaid maid;
@@ -26,6 +29,11 @@ public abstract class LLMCallbackTrackingMixin {
             at = @At("RETURN"), remap = false)
     private void tlmSincerely$trackRequest(MaidAIChatManager manager, List<LLMMessage> messages,
                                             boolean silent, CallbackInfo ci) {
+        // 附属 Mod「Self Talk」的回调（自话/互聊/梦话）继承 LLMCallback 但不走主 Mod 的完成流程
+        // （onSuccess 不调 super），登记了就永远等不到完成，10 分钟后看门狗必然误报；它们不是玩家聊天，直接不追踪。
+        if (this.getClass().getName().startsWith(SELF_TALK_PACKAGE)) {
+            return;
+        }
         MemoryChatTracker.register((LLMCallback) (Object) this, maid, messages);
     }
 

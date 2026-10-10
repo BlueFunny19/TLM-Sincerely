@@ -256,12 +256,13 @@ public final class ChatCommand {
     }
 
     private static void sendChatMessage(EntityMaid maid, ServerPlayer player, String message) {
-        ChatClientInfo clientInfo = createServerSideClientInfo(maid);
+        ChatClientInfo clientInfo = createServerSideClientInfo(maid, player);
         maid.getAiChatManager().chat(message, clientInfo, player);
     }
 
-    private static ChatClientInfo createServerSideClientInfo(EntityMaid maid) {
-        String language = maid.getAiChatManager().getTTSLanguage();
+    private static ChatClientInfo createServerSideClientInfo(EntityMaid maid, ServerPlayer player) {
+        // 对话语言取玩家的客户端语言（与主 Mod 聊天界面一致），不能用女仆的 TTS 语言
+        String language = player.getLanguage();
         if (language == null || language.isEmpty()) {
             language = DEFAULT_LANGUAGE;
         }

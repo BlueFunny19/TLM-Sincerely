@@ -1,5 +1,7 @@
 package com.github.tartaricacid.tlm_sincerely;
 
+import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
+import com.github.tartaricacid.tlm_sincerely.ai.tool.TellMaidTool;
 import com.github.tartaricacid.tlm_sincerely.command.AutoWorkCompatCommand;
 import com.github.tartaricacid.tlm_sincerely.command.AutoWorkPresetCommand;
 import com.github.tartaricacid.tlm_sincerely.command.ChatCommand;
@@ -20,15 +22,18 @@ import com.github.tartaricacid.tlm_sincerely.priority.autowork.network.AutoWorkS
 import com.github.tartaricacid.tlm_sincerely.priority.autowork.push.AutoWorkPushService;
 import com.github.tartaricacid.tlm_sincerely.priority.detection.compat.CompatDetectorBootstrap;
 import com.github.tartaricacid.tlm_sincerely.priority.TaskAutoSwitchHandler;
+import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.commands.synchronization.SingletonArgumentInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
@@ -98,6 +103,8 @@ public class SincerelyMod {
     public void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             MemoryMaintenanceManager.onServerTick(event.getServer());
+            // maid_move：指令表每 10 tick 处理一次（间隔判断在管理器内部）
+            MoveDirectiveManager.onServerTick(event.getServer());
             AutoWorkCompatService compatService = AutoWorkCompatService.getOrNull(event.getServer());
             if (compatService != null) {
                 compatService.onServerTick();
@@ -111,6 +118,23 @@ public class SincerelyMod {
             if (pushService != null) {
                 pushService.onServerTick();
             }
+        }
+    }
+
+    /**
+     * 女仆加载（含服务端重启后从存档读出）时的移动指令恢复入口。
+     *
+     * <p>接线位置的说明：本模组另一个 {@code EntityJoinLevelEvent} 订阅者
+     * {@code priority.TaskAutoSwitchHandler#onEntityJoinLevel} 负责的是自动工作调度缓存，
+     * 与移动指令无关；这里单独挂一个，保持职责清晰。事件在实体数据（含持久化标签）读出之后触发，
+     * 因此可以直接读 {@code maid.getPersistentData()}；处理逻辑见
+     * {@link MoveDirectiveManager#onMaidLoaded}——到期或数据不可信就立刻恢复原状态并清标签，
+     * 否则把指令重新登记回管理器。
+     */
+    @SubscribeEvent
+    public void onEntityJoinLevel(EntityJoinLevelEvent event) {
+        if (event.getLevel() instanceof ServerLevel level && event.getEntity() instanceof EntityMaid maid) {
+            MoveDirectiveManager.onMaidLoaded(level, maid);
         }
     }
 
@@ -133,6 +157,8 @@ public class SincerelyMod {
         AutoWorkPresetService.unbind(event.getServer());
         MemoryMaintenanceManager.clearRuntimeState();
         MaidMemoryManager.clearCache();
+        TellMaidTool.clearRateLimitState();
+        MoveDirectiveManager.clear();
     }
 
     @SubscribeEvent

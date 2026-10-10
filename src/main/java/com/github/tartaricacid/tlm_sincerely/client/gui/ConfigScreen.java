@@ -3,7 +3,9 @@ package com.github.tartaricacid.tlm_sincerely.client.gui;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.ChatBarConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MaidCommandConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MemoryConfig;
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.PriorityConfig;
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.RelayConfig;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
@@ -77,6 +79,40 @@ public final class ConfigScreen {
                 .setDefaultValue("@")
                 .setTooltip(Component.translatable("config.tlm_sincerely.chatbar.prefix_pattern.tooltip"))
                 .setSaveConsumer(ChatBarConfig.PREFIX_PATTERN::set)
+                .build());
+
+        chatbar.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.chatbar.multi_target_enabled"),
+                        ChatBarConfig.MULTI_TARGET_ENABLED.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.chatbar.multi_target_enabled.tooltip"))
+                .setSaveConsumer(ChatBarConfig.MULTI_TARGET_ENABLED::set)
+                .build());
+
+        chatbar.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.chatbar.split_reply_lines"),
+                        ChatBarConfig.SPLIT_REPLY_LINES.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.chatbar.split_reply_lines.tooltip"))
+                .setSaveConsumer(ChatBarConfig.SPLIT_REPLY_LINES::set)
+                .build());
+
+        chatbar.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.chatbar.max_targets"),
+                        ChatBarConfig.MAX_TARGETS.get())
+                .setDefaultValue(5)
+                .setMin(1)
+                .setMax(20)
+                .setTooltip(Component.translatable("config.tlm_sincerely.chatbar.max_targets.tooltip"))
+                .setSaveConsumer(ChatBarConfig.MAX_TARGETS::set)
+                .build());
+
+        chatbar.add(entryBuilder.startStrList(
+                        Component.translatable("config.tlm_sincerely.chatbar.all_keywords"),
+                        new ArrayList<>(ChatBarConfig.ALL_KEYWORDS.get()))
+                .setDefaultValue(ChatBarConfig.DEFAULT_ALL_KEYWORDS)
+                .setTooltip(Component.translatable("config.tlm_sincerely.chatbar.all_keywords.tooltip"))
+                .setSaveConsumer(ChatBarConfig.ALL_KEYWORDS::set)
                 .build());
 
         addon.addEntry(chatbar.build());
@@ -432,6 +468,128 @@ public final class ConfigScreen {
                 .build());
 
         addon.addEntry(maidCommand.build());
+
+        SubCategoryBuilder relay = entryBuilder.startSubCategory(
+                Component.translatable("config.tlm_sincerely.relay"));
+        relay.setExpanded(true);
+
+        relay.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.relay.enabled"),
+                        RelayConfig.RELAY_ENABLED.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.relay.enabled.tooltip"))
+                .setSaveConsumer(RelayConfig.RELAY_ENABLED::set)
+                .build());
+
+        relay.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.relay.cooldown_seconds"),
+                        RelayConfig.RELAY_COOLDOWN_SECONDS.get())
+                .setDefaultValue(30)
+                .setMin(0)
+                .setMax(3600)
+                .setTooltip(Component.translatable("config.tlm_sincerely.relay.cooldown_seconds.tooltip"))
+                .setSaveConsumer(RelayConfig.RELAY_COOLDOWN_SECONDS::set)
+                .build());
+
+        relay.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.relay.max_per_minute"),
+                        RelayConfig.RELAY_MAX_PER_MINUTE_PER_OWNER.get())
+                .setDefaultValue(6)
+                .setMin(1)
+                .setMax(120)
+                .setTooltip(Component.translatable("config.tlm_sincerely.relay.max_per_minute.tooltip"))
+                .setSaveConsumer(RelayConfig.RELAY_MAX_PER_MINUTE_PER_OWNER::set)
+                .build());
+
+        addon.addEntry(relay.build());
+
+        SubCategoryBuilder move = entryBuilder.startSubCategory(
+                Component.translatable("config.tlm_sincerely.move"));
+        move.setExpanded(true);
+
+        move.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.move.enabled"),
+                        MoveConfig.MOVE_ENABLED.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.move.enabled.tooltip"))
+                .setSaveConsumer(MoveConfig.MOVE_ENABLED::set)
+                .build());
+
+        move.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.move.default_duration_seconds"),
+                        MoveConfig.MOVE_DEFAULT_DURATION_SECONDS.get())
+                .setDefaultValue(600)
+                .setMin(10)
+                .setMax(86400)
+                .setTooltip(Component.translatable("config.tlm_sincerely.move.default_duration_seconds.tooltip"))
+                .setSaveConsumer(MoveConfig.MOVE_DEFAULT_DURATION_SECONDS::set)
+                .build());
+
+        move.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.move.max_duration_seconds"),
+                        MoveConfig.MOVE_MAX_DURATION_SECONDS.get())
+                .setDefaultValue(3600)
+                .setMin(10)
+                .setMax(86400)
+                .setTooltip(Component.translatable("config.tlm_sincerely.move.max_duration_seconds.tooltip"))
+                .setSaveConsumer(MoveConfig.MOVE_MAX_DURATION_SECONDS::set)
+                .build());
+
+        move.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.move.max_active_per_owner"),
+                        MoveConfig.MOVE_MAX_ACTIVE_PER_OWNER.get())
+                .setDefaultValue(8)
+                .setMin(1)
+                .setMax(64)
+                .setTooltip(Component.translatable("config.tlm_sincerely.move.max_active_per_owner.tooltip"))
+                .setSaveConsumer(MoveConfig.MOVE_MAX_ACTIVE_PER_OWNER::set)
+                .build());
+
+        move.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.move.allow_permanent"),
+                        MoveConfig.MOVE_ALLOW_PERMANENT.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.move.allow_permanent.tooltip"))
+                .setSaveConsumer(MoveConfig.MOVE_ALLOW_PERMANENT::set)
+                .build());
+
+        move.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.move.permanent_reminder_minutes"),
+                        MoveConfig.MOVE_PERMANENT_REMINDER_MINUTES.get())
+                .setDefaultValue(10)
+                .setMin(0)
+                .setMax(120)
+                .setTooltip(Component.translatable("config.tlm_sincerely.move.permanent_reminder_minutes.tooltip"))
+                .setSaveConsumer(MoveConfig.MOVE_PERMANENT_REMINDER_MINUTES::set)
+                .build());
+
+        move.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.move.teleport_fallback"),
+                        MoveConfig.MOVE_TELEPORT_FALLBACK.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.move.teleport_fallback.tooltip"))
+                .setSaveConsumer(MoveConfig.MOVE_TELEPORT_FALLBACK::set)
+                .build());
+
+        move.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.move.teleport_max_distance"),
+                        MoveConfig.MOVE_TELEPORT_MAX_DISTANCE.get())
+                .setDefaultValue(64)
+                .setMin(8)
+                .setMax(256)
+                .setTooltip(Component.translatable("config.tlm_sincerely.move.teleport_max_distance.tooltip"))
+                .setSaveConsumer(MoveConfig.MOVE_TELEPORT_MAX_DISTANCE::set)
+                .build());
+
+        move.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.move.force_work_schedule"),
+                        MoveConfig.MOVE_FORCE_WORK_SCHEDULE.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.move.force_work_schedule.tooltip"))
+                .setSaveConsumer(MoveConfig.MOVE_FORCE_WORK_SCHEDULE::set)
+                .build());
+
+        addon.addEntry(move.build());
     }
 
     public static void register() {

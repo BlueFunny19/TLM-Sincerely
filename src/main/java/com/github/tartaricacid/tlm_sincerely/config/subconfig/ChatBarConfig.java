@@ -2,6 +2,9 @@ package com.github.tartaricacid.tlm_sincerely.config.subconfig;
 
 import net.minecraftforge.common.ForgeConfigSpec;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 聊天栏配置。其中的 ChatModeEnabled / GlobalChatVisible 为 COMMON 配置，
  * 仅作为新玩家（无 /tlmchat mode|global 个人记录时）的默认值；
@@ -9,11 +12,18 @@ import net.minecraftforge.common.ForgeConfigSpec;
  * 管理员只能在此调整默认行为，其余条目仍为全服生效的服务端配置。
  */
 public final class ChatBarConfig {
+    /** 多目标“全体”关键词默认值；比较时忽略大小写。 */
+    public static final List<String> DEFAULT_ALL_KEYWORDS = List.of("全体", "all");
+
     public static ForgeConfigSpec.BooleanValue CHAT_MODE;
     public static ForgeConfigSpec.BooleanValue GLOBAL_VISIBLE;
     public static ForgeConfigSpec.BooleanValue REQUIRE_PREFIX;
     public static ForgeConfigSpec.DoubleValue AUTO_CHAT_RANGE;
     public static ForgeConfigSpec.ConfigValue<String> PREFIX_PATTERN;
+    public static ForgeConfigSpec.BooleanValue MULTI_TARGET_ENABLED;
+    public static ForgeConfigSpec.IntValue MAX_TARGETS;
+    public static ForgeConfigSpec.BooleanValue SPLIT_REPLY_LINES;
+    public static ForgeConfigSpec.ConfigValue<List<? extends String>> ALL_KEYWORDS;
 
     public static void init(ForgeConfigSpec.Builder builder) {
         builder.push("chatbar");
@@ -32,6 +42,22 @@ public final class ChatBarConfig {
 
         builder.comment("Prefix pattern for specifying maid name");
         PREFIX_PATTERN = builder.define("PrefixPattern", "@");
+
+        builder.comment("Allow one chat message to address several maids at once, e.g. '@Alice @Bob hello' or '@all hello'",
+                "When disabled, only the legacy single-target '@name message' form is parsed");
+        MULTI_TARGET_ENABLED = builder.define("MultiTargetEnabled", true);
+
+        builder.comment("Show a multi-paragraph maid reply as several chat lines (one per paragraph) instead of one block",
+                "Only changes how the reply is displayed in chat; the bubble and the stored history are untouched");
+        SPLIT_REPLY_LINES = builder.define("SplitReplyLines", true);
+
+        builder.comment("Maximum number of maids one chat message is delivered to (1-20)");
+        MAX_TARGETS = builder.defineInRange("MaxTargets", 5, 1, 20);
+
+        builder.comment("Keywords that mean 'every maid in range' when used as a target, compared case-insensitively");
+        // 与 MaidCommandConfig 一致：默认值用可变 List，避免 Forge 在缺失键时对不可变集合做写入
+        ALL_KEYWORDS = builder.defineList("AllKeywords", new ArrayList<>(DEFAULT_ALL_KEYWORDS),
+                value -> value instanceof String);
 
         builder.pop();
     }

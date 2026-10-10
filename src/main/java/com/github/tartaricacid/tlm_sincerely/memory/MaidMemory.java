@@ -147,8 +147,16 @@ public class MaidMemory {
     }
 
     public String generateContextPreview(int coreLimit, int previewLength, String previewMode, boolean showSource) {
+        return generateContextPreview(coreLimit, previewLength, previewMode, showSource, false);
+    }
+
+    /**
+     * @param chinese true 时空记忆与汇总行使用中文（对话语言为中文时由调用方传入），否则保持英文。
+     */
+    public String generateContextPreview(int coreLimit, int previewLength, String previewMode, boolean showSource,
+                                         boolean chinese) {
         if (memories.isEmpty()) {
-            return "None";
+            return chinese ? "无" : "None";
         }
 
         boolean keysOnly = "keys_only".equals(previewMode);
@@ -210,12 +218,22 @@ public class MaidMemory {
         int coreTotal = coreEntries.size();
         int archiveTotal = archiveEntries.size();
         if (coreTotal > 0 || archiveTotal > 0) {
-            sb.append(coreTotal + archiveTotal).append(" memories total");
-            if (coreTotal > 0) {
-                sb.append(", ").append(coreTotal).append(" core");
-            }
-            if (archiveTotal > 0) {
-                sb.append(", ").append(archiveTotal).append(" archive");
+            if (chinese) {
+                sb.append("共 ").append(coreTotal + archiveTotal).append(" 条记忆");
+                if (coreTotal > 0) {
+                    sb.append("，其中 core ").append(coreTotal).append(" 条");
+                }
+                if (archiveTotal > 0) {
+                    sb.append("，archive ").append(archiveTotal).append(" 条");
+                }
+            } else {
+                sb.append(coreTotal + archiveTotal).append(" memories total");
+                if (coreTotal > 0) {
+                    sb.append(", ").append(coreTotal).append(" core");
+                }
+                if (archiveTotal > 0) {
+                    sb.append(", ").append(archiveTotal).append(" archive");
+                }
             }
         }
 
