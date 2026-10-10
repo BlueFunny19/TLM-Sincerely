@@ -135,6 +135,27 @@ class MoveMathTest {
         assertEquals(MoveMath.MIN_DISTANCE, MoveMath.clampDistance(Double.NaN, 0.0D), EPSILON);
     }
 
+    // ===== 持续时间 =====
+
+    @Test
+    void resolveDurationSeconds_missingUsesDefault() {
+        assertEquals(600, MoveMath.resolveDurationSeconds(-1, 600, 3600));
+        assertEquals(600, MoveMath.resolveDurationSeconds(0, 600, 3600));
+    }
+
+    @Test
+    void resolveDurationSeconds_requestedIsKeptUpToTheMax() {
+        assertEquals(90, MoveMath.resolveDurationSeconds(90, 600, 3600));
+        assertEquals(3600, MoveMath.resolveDurationSeconds(3600, 600, 3600));
+        assertEquals(3600, MoveMath.resolveDurationSeconds(99999, 600, 3600));
+    }
+
+    @Test
+    void resolveDurationSeconds_defaultNeverExceedsTheMax() {
+        // 管理员把上限调得比默认值还小：缺省值也要被压到上限以内
+        assertEquals(300, MoveMath.resolveDurationSeconds(-1, 600, 300));
+    }
+
     // ===== 可站立点采样 =====
 
     @Test

@@ -4,9 +4,12 @@ import com.github.tartaricacid.tlm_sincerely.ai.context.MaidAutoWorkContext;
 import com.github.tartaricacid.tlm_sincerely.ai.context.MaidMemoryContext;
 import com.github.tartaricacid.tlm_sincerely.ai.context.MaidMoveContext;
 import com.github.tartaricacid.tlm_sincerely.ai.tool.AutoWorkTool;
+import com.github.tartaricacid.tlm_sincerely.ai.tool.MaidCancelTool;
 import com.github.tartaricacid.tlm_sincerely.ai.tool.MaidCommandTool;
+import com.github.tartaricacid.tlm_sincerely.ai.tool.MaidGuardTool;
 import com.github.tartaricacid.tlm_sincerely.ai.tool.MaidMemoryTool;
 import com.github.tartaricacid.tlm_sincerely.ai.tool.MaidMoveTool;
+import com.github.tartaricacid.tlm_sincerely.ai.tool.MaidWorkTimeTool;
 import com.github.tartaricacid.tlm_sincerely.ai.tool.TellMaidTool;
 import com.github.tartaricacid.tlm_sincerely.priority.autowork.AutoWorkTaskDataKeys;
 import com.github.tartaricacid.touhoulittlemaid.ai.agent.context.GameContextRegister;
@@ -26,8 +29,11 @@ public class SincerelyExtension implements ILittleMaid {
         register.register(new MaidCommandTool());
         // tell_maid：可用性由 RelayConfig.RelayEnabled 在 ITool#trigger 中判定
         register.register(new TellMaidTool());
-        // maid_move：可用性由 MoveConfig.MoveEnabled 在 ITool#trigger 中判定
+        // maid_move / maid_guard / maid_work_time / maid_cancel：可用性都由 MoveConfig.MoveEnabled 在 ITool#trigger 中判定
         register.register(new MaidMoveTool());
+        register.register(new MaidGuardTool());
+        register.register(new MaidWorkTimeTool());
+        register.register(new MaidCancelTool());
     }
 
     @Override

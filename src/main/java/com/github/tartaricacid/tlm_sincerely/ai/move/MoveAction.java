@@ -5,7 +5,11 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Locale;
 
 /**
- * {@code maid_move} 的 action 取值。
+ * 移动类指令的种类，也是指令表与存档里记录的 action 标识。
+ * <p>
+ * 分属四个工具：{@code maid_move}（approach / retreat / goto / stay / go_home）、{@code maid_guard}（guard）、
+ * {@code maid_work_time}（work_time）、{@code maid_cancel}（cancel，只用于存档里的旧数据与内部结束指令）。
+ * 它们共用同一套指令登记、暂停跟随与恢复机制，所以放在同一个枚举里。
  * <p>
  * 机器标识（{@link #id()}）与参数名保持英文；{@link #defaultDistance()} 是各动作的默认距离（格），
  * 非距离类动作返回 0。此枚举为纯 Java，便于单元测试。

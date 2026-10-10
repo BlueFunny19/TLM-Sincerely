@@ -2,35 +2,34 @@ package com.github.tartaricacid.tlm_sincerely.ai.move;
 
 import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
-import com.github.tartaricacid.touhoulittlemaid.api.task.IAttackTask;
-import com.github.tartaricacid.touhoulittlemaid.api.task.IMaidTask;
 import com.github.tartaricacid.touhoulittlemaid.entity.ai.brain.MaidSchedule;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.OwnableEntity;
-import net.minecraft.world.entity.ai.Brain;
-import net.minecraft.world.entity.ai.behavior.BehaviorUtils;
-import net.minecraft.world.entity.ai.memory.MemoryModuleType;
-import net.minecraft.world.entity.ai.memory.WalkTarget;
-import net.minecraft.world.entity.monster.Enemy;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.github.tartaricacid.tlm_sincerely.ai.move.GoHome.hasWorkPos;
+import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveLog.fmt;
+import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveLog.fmtVec;
+import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveLog.shortId;
+import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation.POINT_CLOSE_ENOUGH;
+import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation.findStandable;
+import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation.hasCantReachMemory;
+import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation.teleportMaid;
+import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation.toPoint;
+import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation.walkToEntity;
+import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation.walkToPoint;
 
 /**
  * {@code maid_move} 的服务端指令管理器（内存态 + 女仆实体上的持久化）。
@@ -51,11 +50,9 @@ import java.util.UUID;
  *       {@link #onMaidLoaded} 重新登记或立刻恢复。</li>
  * </ol>
  *
- * <p><b>移动实现</b>：用 Brain 的 {@code WALK_TARGET} 记忆下发（实体目标走
- * {@link BehaviorUtils#setWalkAndLookTargetMemories}，坐标目标直接写 {@link WalkTarget}），
- * 与主模组自己的走动行为一致——TLM 的 {@code MaidFollowOwnerTask} / {@code MaidWalkToLivingEntityTask}
- * 都是这么做的，且 {@code MoveToTargetSink} 注册在女仆 Brain 的 CORE activity 上，任何时候都会消费该记忆。
- * 步速倍率取 {@code 0.5F}，与 {@code MaidFollowOwnerTask} 的构造参数一致。
+ * <p><b>移动实现</b>：用 Brain 的 {@code WALK_TARGET} 记忆下发，与主模组自己的走动行为一致，
+ * 具体的走路 / 找落脚点 / 传送见 {@link MoveNavigation}，守护时的攻击见 {@link GuardCombat}，
+ * 回家见 {@link GoHome}。
  *
  * <p><b>为什么要暂停跟随</b>：{@code MaidFollowOwnerTask} 在 {@code MaidBrain.registerCoreGoals} 里
  * 无条件注册到 CORE，条件是运行时判的 {@code !maid.isHomeModeEnable() && maid.canBrainMoving()}；
@@ -72,23 +69,8 @@ public final class MoveDirectiveManager {
     /** 处理周期（tick）。指令本身是限时的，这里只是重新下发移动的节奏。 */
     public static final int TICK_INTERVAL = 10;
 
-    /** 守护时搜索敌对生物的最小间隔（tick）。 */
-    private static final int GUARD_SCAN_INTERVAL = 20;
-
-    /** 守护时以被守护者为中心搜索敌对生物的范围（格）。 */
-    private static final double GUARD_SCAN_RANGE = 8.0D;
-
-    /** 移动速度倍率，与 TLM {@code MaidFollowOwnerTask} 的构造参数一致。 */
-    private static final float WALK_SPEED = 0.5F;
-
-    /** 坐标移动的到位半径（格），与 {@link MoveMath#ARRIVE_RADIUS} 同口径。 */
-    private static final int POINT_CLOSE_ENOUGH = 1;
-
     /** goto 到位后允许漂出的额外距离（格）：超过到位半径 + 该值才重新下发 WALK_TARGET。 */
     private static final double GOTO_DRIFT_MARGIN = 2.0D;
-
-    /** go_home 在工作坐标周围搜索落脚点的半径（格）——比 {@link MoveMath#standableOffsets()} 的 ±2 格更大。 */
-    private static final int HOME_SEARCH_RADIUS = 4;
 
     private static final MoveOrders ORDERS = new MoveOrders();
 
@@ -473,7 +455,7 @@ public final class MoveDirectiveManager {
     }
 
     /** 移除内存指令并做结束收尾（恢复原状态、清标签与运行时状态）。 */
-    private static void removeOrder(@Nullable UUID maidId, @Nullable EntityMaid maid, String reason) {
+    static void removeOrder(@Nullable UUID maidId, @Nullable EntityMaid maid, String reason) {
         if (maidId == null) {
             return;
         }
@@ -858,8 +840,8 @@ public final class MoveDirectiveManager {
                 if (goal.walking()) {
                     walkToEntity(maid, goal.entity(), order.distance());
                 }
-                if (nowTick % GUARD_SCAN_INTERVAL == 0) {
-                    tryGuardAttack(level, maid, goal.entity());
+                if (nowTick % GuardCombat.SCAN_INTERVAL == 0) {
+                    GuardCombat.tryAttack(level, maid, goal.entity());
                 }
             }
             case RETREAT -> {
@@ -875,80 +857,6 @@ public final class MoveDirectiveManager {
             default -> {
             }
         }
-    }
-
-    // ===== go_home =====
-
-    /** {@code go_home} 的结果：给模型的文字 + 是否真的执行了。 */
-    public record ActionResult(String message, boolean acted) {
-    }
-
-    /**
-     * 回家：立刻传送到工作坐标附近并打开居家模式（永久性改变，不产生指令、不写标签、不超时）。
-     *
-     * <p>前提是女仆有工作坐标。核实的判定方式（javap，mapped TLM 1.5.3）：
-     * <ul>
-     *   <li>{@code EntityMaid#hasRestriction()} 被覆写成 {@code isHomeModeEnable()}，<b>不能</b>用来判断
-     *       "有没有工作坐标"；{@code getRestrictRadius()} 的默认值是
-     *       {@code MaidConfig.MAID_NON_HOME_RANGE}（默认 8），也不是 -1 哨兵值；</li>
-     *   <li>工作坐标真正的载体是女仆的日程坐标 {@code EntityMaid#getSchedulePos()}
-     *       （{@code SchedulePos.isConfigured()} / {@code getWorkPos()}，持久化在 {@code MaidSchedulePos} 标签里）。
-     *       TLM 的 {@code SchedulePos#setHomeModeEnable(maid,pos)} 只在 {@code !configured} 时写入
-     *       work/idle/sleep 三个坐标，也就是玩家设定工作坐标的那一次。所以
-     *       {@code isConfigured() && getWorkPos() != null} 就是"有工作坐标"。</li>
-     * </ul>
-     * 找不到落脚点时返回 {@link MoveText#homeNoSpot}，且不改变任何状态（先恢复暂停记录再找位置，
-     * 这样拿到的才是真实的工作坐标；找不到时女仆状态已经被恢复成原样，指令也没了）。
-     */
-    public static ActionResult goHome(ServerLevel level, EntityMaid maid) {
-        UUID maidId = maid.getUUID();
-        boolean zh = PromptLang.isChinese(PromptLang.of(maid));
-        String maidName = maid.getName().getString();
-        if (!hasWorkPos(maid)) {
-            LOGGER.info("[maid_move] go_home rejected: no work position. maid={} name={}", shortId(maidId), maidName);
-            return new ActionResult(MoveText.noWorkPos(zh, maidName), false);
-        }
-        BlockPos workPos = maid.getSchedulePos().getWorkPos();
-        // 先结束暂停中的指令：这样读到的是真实工作坐标，状态也会被恢复成原样（不会停在"被改过"的样子）
-        removeOrder(maidId, maid, "go-home");
-        BlockPos landing = findStandableNearHome(level, workPos);
-        if (landing == null) {
-            LOGGER.info("[maid_move] go_home rejected: no standable spot near work position. maid={} name={} workPos={}",
-                    shortId(maidId), maidName, workPos);
-            return new ActionResult(MoveText.homeNoSpot(zh, maidName), false);
-        }
-        teleportMaid(maid, landing);
-        maid.setHomeModeEnable(true);
-        MaidSpeech.say(maid, MoveText.saidWentHome(zh));
-        LOGGER.info("[maid_move] go_home done: maid={} name={} workPos={} landing={} homeMode={} dimension={}",
-                shortId(maidId), maidName, workPos, landing, maid.isHomeModeEnable(), level.dimension().location());
-        return new ActionResult(MoveText.wentHome(zh, maidName, workPos.getX(), workPos.getY(), workPos.getZ()), true);
-    }
-
-    /** 女仆有没有工作坐标（见 {@link #goHome} 的 javap 说明）。 */
-    public static boolean hasWorkPos(EntityMaid maid) {
-        if (maid == null) {
-            return false;
-        }
-        var schedulePos = maid.getSchedulePos();
-        return schedulePos != null && schedulePos.isConfigured() && schedulePos.getWorkPos() != null;
-    }
-
-    /**
-     * 在工作坐标周围更大范围里找落脚点：先按每格一个的水平搜索点（近的优先）扫，
-     * 每个点再交给既有的 {@link #findStandable} 偏移表。
-     */
-    @Nullable
-    private static BlockPos findStandableNearHome(ServerLevel level, BlockPos workPos) {
-        MoveMath.Point center = new MoveMath.Point(
-                workPos.getX() + 0.5D, workPos.getY(), workPos.getZ() + 0.5D);
-        for (MoveMath.Point point : MoveMath.horizontalSearchPoints(center, HOME_SEARCH_RADIUS)) {
-            BlockPos standable = findStandable(level, point);
-            if (standable != null) {
-                return standable;
-            }
-        }
-        return null;
     }
 
     // ===== 寻路失败兜底（传送 / 放弃） =====
@@ -1034,72 +942,7 @@ public final class MoveDirectiveManager {
         return null;
     }
 
-    /**
-     * 把女仆直接挪到指定落脚点，并照抄主模组传送后的收尾动作。
-     *
-     * <p>javap 证据（mapped TLM 1.5.3）：
-     * {@code EntityMaid.maybeTeleportTo(LivingEntity,int,int,int)} 是主模组"主人太远时把女仆传送过去"的
-     * 落地实现（公开入口是 {@code EntityMaid#teleportToOwner(LivingEntity)}：循环 10 次取 ±3 格随机偏移后
-     * 调用它）。它通过私有的 {@code canTeleportTo(BlockPos)} 校验后依次执行：
-     * {@code moveTo(x + 0.5, y, z + 0.5, getYRot(), getXRot())} →
-     * {@code getNavigation().stop()} →
-     * {@code eraseMemory(WALK_TARGET / LOOK_TARGET / ATTACK_TARGET / PATH)}。
-     * {@code MaidFollowOwnerTask} 在 {@code teleportToOwner} 之后还会调用
-     * {@code getNavigationManager().resetNavigation()}（切回地面导航、清掉游泳状态）。
-     * 这里照抄同一套收尾动作，只是落点由我们自己按 {@link MoveMath#landingCandidates} 算。
-     *
-     * <p>没直接调 {@code teleportToOwner} 的原因：它要求目标是 {@link LivingEntity} 且落点只能在目标
-     * ±3 格的随机位置（还强制与目标水平距离 ≥2 格），goto / retreat / go_home 的坐标目标用不上，
-     * approach / guard 也没法"优先女仆原来的方向"。所以复用它内部的实现方式而不是它本身。
-     */
-    private static void teleportMaid(EntityMaid maid, BlockPos pos) {
-        maid.moveTo(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, maid.getYRot(), maid.getXRot());
-        maid.getNavigation().stop();
-        Brain<EntityMaid> brain = maid.getBrain();
-        brain.eraseMemory(MemoryModuleType.WALK_TARGET);
-        brain.eraseMemory(MemoryModuleType.LOOK_TARGET);
-        brain.eraseMemory(MemoryModuleType.ATTACK_TARGET);
-        brain.eraseMemory(MemoryModuleType.PATH);
-        maid.getNavigationManager().resetNavigation();
-    }
-
-    /**
-     * 女仆 Brain 里是否有原版寻路失败标记（{@code MoveToTargetSink#tryComputePath} 在
-     * {@code path.canReach()} 为 false 且还没记过时写入，可走通时擦除）。
-     * {@code Brain#hasMemoryValue} 对未注册的记忆类型安全返回 false，这里不额外兜异常。
-     */
-    private static boolean hasCantReachMemory(EntityMaid maid) {
-        return maid.getBrain().hasMemoryValue(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE);
-    }
-
-    /**
-     * 守护时把最近的敌对生物设为攻击目标。
-     * <p>当前任务不是 {@link IAttackTask} 时不擅自换任务，直接放弃（工具已通过
-     * {@code guardNoCombatNote} 告知模型"只能守在身边"）。
-     */
-    private static void tryGuardAttack(ServerLevel level, EntityMaid maid, @Nullable LivingEntity guarded) {
-        if (guarded == null) {
-            return;
-        }
-        IMaidTask task = maid.getTask();
-        if (!(task instanceof IAttackTask attackTask)) {
-            return;
-        }
-        LivingEntity hostile = findNearestHostile(level, maid, guarded, attackTask);
-        if (hostile == null) {
-            return;
-        }
-        // 与主模组 SwitchWorkTaskTool#attackResult 同构：先 setTarget，再按攻击排除规则回滚或写 Brain 记忆
-        LivingEntity previous = maid.getTarget();
-        maid.setTarget(hostile);
-        if (!attackTask.canAttack(maid, hostile)) {
-            maid.setTarget(previous);
-            return;
-        }
-        maid.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, hostile);
-    }
-
-    // ===== 目标与移动工具方法 =====
+    // ===== 目标与查找工具方法 =====
 
     /** 解析指令的目标实体；目标离线/被移除/跨维度/已死亡时返回 null（由调用方清除指令）。 */
     @Nullable
@@ -1133,26 +976,6 @@ public final class MoveDirectiveManager {
         return target == null ? null : target.getName().getString();
     }
 
-    /** 以 {@link BehaviorUtils} 走主模组的惯用路径：同时设置 WALK_TARGET 与 LOOK_TARGET。 */
-    private static void walkToEntity(EntityMaid maid, @Nullable LivingEntity target, double closeEnough) {
-        if (target == null) {
-            return;
-        }
-        BehaviorUtils.setWalkAndLookTargetMemories(maid, target, WALK_SPEED, toCloseEnough(closeEnough));
-    }
-
-    private static void walkToPoint(EntityMaid maid, @Nullable Vec3 point, int closeEnough) {
-        if (point == null) {
-            return;
-        }
-        maid.getBrain().setMemory(MemoryModuleType.WALK_TARGET,
-                new WalkTarget(point, WALK_SPEED, Math.max(1, closeEnough)));
-    }
-
-    private static int toCloseEnough(double distance) {
-        return Math.max(1, (int) Math.round(distance));
-    }
-
     @Nullable
     private static EntityMaid findMaid(MinecraftServer server, UUID maidId) {
         for (ServerLevel level : server.getAllLevels()) {
@@ -1162,76 +985,6 @@ public final class MoveDirectiveManager {
             }
         }
         return null;
-    }
-
-    /**
-     * 在被守护者周围找最近的敌对生物：{@link Enemy}、存活、不是玩家/女仆、不是有主人的生物，
-     * 并且必须能通过当前攻击任务的 {@link IAttackTask#canAttack} 排除规则。
-     */
-    @Nullable
-    private static LivingEntity findNearestHostile(ServerLevel level, EntityMaid maid,
-                                                   LivingEntity guarded, IAttackTask attackTask) {
-        List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class,
-                guarded.getBoundingBox().inflate(GUARD_SCAN_RANGE),
-                entity -> isGuardHostile(maid, guarded, entity));
-        LivingEntity nearest = null;
-        double nearestSqr = Double.MAX_VALUE;
-        for (LivingEntity candidate : candidates) {
-            if (!attackTask.canAttack(maid, candidate)) {
-                continue;
-            }
-            double distanceSqr = candidate.distanceToSqr(guarded);
-            if (distanceSqr < nearestSqr) {
-                nearestSqr = distanceSqr;
-                nearest = candidate;
-            }
-        }
-        return nearest;
-    }
-
-    private static boolean isGuardHostile(EntityMaid maid, LivingEntity guarded, LivingEntity entity) {
-        if (entity == maid || entity == guarded || !entity.isAlive()) {
-            return false;
-        }
-        if (!(entity instanceof Enemy)) {
-            return false;
-        }
-        if (entity instanceof Player || entity instanceof EntityMaid) {
-            return false;
-        }
-        // 被驯服/有主人的生物不打（狼、猫、马、其他模组的宠物等）
-        return !(entity instanceof OwnableEntity ownable) || ownable.getOwnerUUID() == null;
-    }
-
-    /** 在 {@link MoveMath#standableOffsets()} 给出的偏移里找第一个可站立（下方有支撑、脚部与头部无碰撞）的位置。 */
-    @Nullable
-    private static BlockPos findStandable(ServerLevel level, MoveMath.Point point) {
-        BlockPos base = BlockPos.containing(point.x(), point.y(), point.z());
-        for (MoveMath.Offset offset : MoveMath.standableOffsets()) {
-            BlockPos candidate = base.offset(offset.dx(), offset.dy(), offset.dz());
-            if (isStandable(level, candidate)) {
-                return candidate;
-            }
-        }
-        return null;
-    }
-
-    private static boolean isStandable(ServerLevel level, BlockPos pos) {
-        BlockPos below = pos.below();
-        BlockState belowState = level.getBlockState(below);
-        if (!belowState.isFaceSturdy(level, below, Direction.UP)) {
-            return false;
-        }
-        return level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()
-                && level.getBlockState(pos.above()).getCollisionShape(level, pos.above()).isEmpty();
-    }
-
-    // ===== 日志与格式化小工具 =====
-
-    /** 女仆的持久化标签（{@code Entity#getPersistentData()} 的子标签）。 */
-    /** 日志里的短 UUID（前 8 位），完整 UUID 太长看不出差别。 */
-    private static String shortId(@Nullable UUID id) {
-        return id == null ? "null" : id.toString().substring(0, 8);
     }
 
     private static String reasonId(MoveProgress.StuckReason reason) {
@@ -1245,20 +998,5 @@ public final class MoveDirectiveManager {
     /** 当前配置的永久提醒间隔（分钟）。 */
     private static int reminderMinutes() {
         return MoveConfig.MOVE_PERMANENT_REMINDER_MINUTES.get();
-    }
-
-    private static String fmt(double value) {
-        return String.format(Locale.ROOT, "%.1f", value);
-    }
-
-    @Nullable
-    private static String fmtVec(@Nullable Vec3 vec) {
-        return vec == null ? "null"
-                : String.format(Locale.ROOT, "(%.1f, %.1f, %.1f)", vec.x(), vec.y(), vec.z());
-    }
-
-    @Nullable
-    private static MoveMath.Point toPoint(@Nullable Vec3 vec) {
-        return vec == null ? null : new MoveMath.Point(vec.x(), vec.y(), vec.z());
     }
 }

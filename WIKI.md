@@ -30,7 +30,7 @@
 5. 使用 `/tlmmemory` 或 AI 工具管理女仆记忆。
 6. 若允许女仆执行命令，通过配置开启 `run_command` 工具；破坏性命令可配置为需要主人确认。
 7. 若安装 Maid Self-Talk 并开启其互聊，可在配置中开启 `tell_maid`，让女仆之间互相转告。
-8. 想临时指挥女仆靠近 / 远离 / 前往某处 / 守护某人 / 留在原地 / 回家，或让她临时“全天候工作”时，直接用自然语言说即可（AI 工具 `maid_move`，见「三、6. 移动指令」）。
+8. 想临时指挥女仆靠近 / 远离 / 前往某处 / 守护某人 / 留在原地 / 回家，或让她临时“全天候工作”时，直接用自然语言说即可（AI 工具 `maid_move` / `maid_guard` / `maid_work_time` / `maid_cancel`，见「三、6. 移动指令」）。
 
 ---
 
@@ -345,20 +345,23 @@ tlm_sincerely/
 
 ---
 
-### 6. 移动指令（AI 工具 `maid_move`）
+### 6. 移动指令（AI 工具 `maid_move` / `maid_guard` / `maid_work_time` / `maid_cancel`）
 
 #### 玩家功能
 
-- 用自然语言指挥女仆“靠近我 / 远离我 / 去某个地方 / 保护某人 / 在原地待着 / 回家 / 临时改成全天工作”：女仆理解后调用 `maid_move` 工具，在限定时间内执行。
-- 八个动作：`approach`（走近目标并保持在 `distance` 格内）、`retreat`（远离目标并保持在 `distance` 格外）、`goto`（前往坐标 `x` / `y` / `z`）、`guard`（守在目标身边 `distance` 格内，并攻击威胁目标的敌对生物）、`stay`（留在原地，同时不再跟随主人）、`go_home`（立刻传送回自己的工作坐标并进入居家模式）、`work_time`（不移动，只把日程临时改成“全天工作”）、`cancel`（取消当前指令）。
+- 用自然语言指挥女仆“靠近我 / 远离我 / 去某个地方 / 保护某人 / 在原地待着 / 回家 / 临时改成全天工作”：女仆理解后调用下面四个工具之一，在限定时间内执行。它们共用同一套指令登记、暂停跟随与恢复机制：同一只女仆同时只有一条指令，新指令（不论来自哪个工具）覆盖旧指令。
+- `maid_move` 有五个动作：`approach`（走近目标并保持在 `distance` 格内）、`retreat`（远离目标并保持在 `distance` 格外）、`goto`（前往坐标 `x` / `y` / `z`）、`stay`（留在原地，同时不再跟随主人）、`go_home`（立刻传送回自己的工作坐标并进入居家模式）。模型把 `guard` / `work_time` / `cancel` 传给它时会收到"请改用某某工具"的提示，而不是只回"未知动作"。
+- `maid_guard`：守在目标身边 `distance` 格内（默认 5），并攻击威胁目标的敌对生物。守护本质上是"跟着一个目标并战斗"，所以不放在 `maid_move` 里。
+- `maid_work_time`：不移动，只把日程临时改成“全天工作”。
+- `maid_cancel`：取消当前指令。只有一个可选参数 `reason`（仅写入日志）：主 Mod 的工具都至少带一个参数，没有先例证明完全无参数的工具能被各家模型接口接受，所以不冒这个险。
 - 目标 `target` 可填 `me`（或「我」）表示主人，也可以填同一主人名下另一只女仆的名字；名字匹配规则与聊天栏一致（先精确、否则子串、多命中取最近），不能填自己。
 - 距离 `distance` 限制在 1~64 格：`approach` 默认 3、`retreat` 默认 16、`guard` 默认 5。
 - 指令是**限时**的：`duration_seconds` 缺省取 `MoveDefaultDurationSeconds`（默认 600 秒 = 10 分钟），上限由 `MoveMaxDurationSeconds` 决定（默认 3600 秒），到时自动结束。同一只女仆同时只有一条指令，新指令覆盖旧指令。
 - **永久指令（`permanent`）**：玩家明确表示“一直这样”（例如“一直守着澪”“在这儿一直等我”）时，模型会把 `permanent` 设为 `true`，指令不再超时，直到玩家让它取消；此时工具返回文字会明确要求模型在回复里告诉玩家“我会一直这样做，想停下只要说一声”。永久指令同样占用 `MoveMaxActivePerOwner` 的名额；`MoveAllowPermanent` 关闭时这类请求会被拒绝并给出改用限时指令的提示。永久指令期间女仆会每隔 `MovePermanentReminderMinutes` 分钟自己说一句“我还在……呢”提醒玩家（0 表示关闭）。
 - **`stay`（留在原地）**：把女仆临时切到居家模式并清掉工作坐标，使她不再跟随主人、原地待命；到期 / `cancel` / 其他指令替换时**精确恢复**她原来的状态（原本是跟随就恢复跟随，原本是居家 + 工作坐标就原样写回）。上面这些“不要跟着主人”的指令（还有 `goto`、`retreat`，以及目标不是主人本人的 `approach` / `guard`）都会在生效期间暂停跟随——因为主模组的 `MaidFollowOwnerTask` 会无条件把她拉回主人身边；目标就是主人的 `approach` / `guard` 不暂停跟随（本来就该跟着）。
-- **`go_home`（回家）**：只有在女仆**设有工作坐标**时可用（判定的是她的日程坐标 `SchedulePos.isConfigured()` / `getWorkPos()`，不是限制半径），没有就返回“没有工作坐标，没法回家”，不改变任何状态。有工作坐标时：先结束并恢复她当前暂停中的指令，在当前维度把工作坐标周围 ±4 格内找一个能站的位置传送过去（找不到就返回“附近找不到能站的地方”，状态不变），然后打开居家模式（工作坐标保持不变），并让女仆自己说一句“我回家啦”。这是**永久性改变**：不产生指令、不超时、不能用 `cancel` 取消，要让她重新跟随请用主模组的跟随工具。`go_home` 不接受 `duration_seconds` / `permanent` 参数（传了会返回提示且什么都不做）。
+- **`go_home`（回家）**：只有在女仆**设有工作坐标**时可用（判定的是她的日程坐标 `SchedulePos.isConfigured()` / `getWorkPos()`，不是限制半径），没有就返回“没有工作坐标，没法回家”，不改变任何状态。有工作坐标时：先结束并恢复她当前暂停中的指令，在当前维度把工作坐标周围 ±4 格内找一个能站的位置传送过去（找不到就返回“附近找不到能站的地方”，状态不变），然后打开居家模式（工作坐标保持不变），并让女仆自己说一句“我回家啦”。这是**永久性改变**：不产生指令、不超时、不能用 `maid_cancel` 取消，要让她重新跟随请用主模组的跟随工具。`go_home` 不接受 `duration_seconds` / `permanent` 参数（传了会返回提示且什么都不做）。
 - **到期与提醒**：限时指令**自然到期**时女仆会说一句“……的时间到了，我恢复自由行动啦”（`cancel` / 被新指令替换 / 因故丢弃时不说）。永久指令的提醒由 `MovePermanentReminderMinutes` 控制。
-- **`work_time`（临时放宽工作时间）**：不移动，只做一件事——把女仆的日程临时改成 TLM 的“全天工作”（`MaidSchedule.ALL`），这样夜里也能让她切换工作任务、也能执行移动指令（背景：玩家没给女仆设置工作坐标时，夜里日程行为会拦下移动、切换工作任务会回答“不在工作时间”）。可以限时，也可以 `permanent=true` 永久；和其他指令一样占 `MoveMaxActivePerOwner` 名额、有到期提示与永久提醒、会出现在给模型看的“当前指令”栏目里、也能跨重启恢复。它**不移动、不暂停跟随、不产生卡住检测**；女仆正在睡觉时不做改动并返回“正在睡觉，现在不适合让她工作”，日程本来就是全天工作时返回“本来就是全天工作，不需要改动”，这两种情况都不会创建指令。
+- **`maid_work_time`（临时放宽工作时间，原来 `maid_move` 的 `work_time` 动作）**：不移动，只做一件事——把女仆的日程临时改成 TLM 的“全天工作”（`MaidSchedule.ALL`），这样夜里也能让她切换工作任务、也能执行移动指令（背景：玩家没给女仆设置工作坐标时，夜里日程行为会拦下移动、切换工作任务会回答“不在工作时间”）。可以限时，也可以 `permanent=true` 永久；和其他指令一样占 `MoveMaxActivePerOwner` 名额、有到期提示与永久提醒、会出现在给模型看的“当前指令”栏目里、也能跨重启恢复。它**不移动、不暂停跟随、不产生卡住检测**；女仆正在睡觉时不做改动并返回“正在睡觉，现在不适合让她工作”，日程本来就是全天工作时返回“本来就是全天工作，不需要改动”，这两种情况都不会创建指令。
 - **日程放宽（所有移动类指令 + `work_time`）**：`approach` / `retreat` / `goto` / `guard` / `stay` / `work_time` 在生效期间，只要女仆**不是在睡觉**，就把她的日程临时改成“全天工作”，指令结束（到期 / `cancel` / 被丢弃 / 被替换成不放宽的指令 / 重启后发现已到期）时恢复成原来的日程（`DAY` / `NIGHT` / `ALL` 原样写回）。`go_home` 与 `cancel` 不放宽。女仆正在睡觉时不动日程，返回文字后追加一句说明。放宽期间若玩家自己改了日程（女仆界面或主模组 `switch_schedule` 工具），视为玩家接管：不恢复、丢掉保存的原日程并写 INFO；移动指令本身照旧继续，`work_time` 则直接结束（它的唯一作用已被玩家覆盖）。`MoveForceWorkSchedule` 关闭后除 `work_time` 外都不再放宽（`work_time` 自己就是为了放宽，不受该开关影响，但仍受 `MoveEnabled` 约束）。
 - **跨服务器重启恢复**：指令、“暂停跟随前保存的原状态”与“放宽日程前保存的原日程”会一起写进女仆实体的持久化标签（`tlm_sincerely:move_order`）。重启后女仆加载时：没到期（或永久）→ 重新登记回管理器，剩余时间照算，永久指令的提醒计时从重启后重新开始（日程仍是“全天工作”就保持，标签里的原日程装回内存）；已经到期或数据不可信 → 立刻恢复原状态与原日程并清掉指令，不让女仆留在被改过的状态里。若标签里有原日程、而当前日程已经不是“全天工作”，说明是玩家自己改的，视为玩家接管：不恢复，只丢掉该字段。服务端停止时不执行恢复动作（此刻世界正在保存，标签已经写好）。旧版本写下的记录没有原日程字段，读到时视为“没有放宽过日程”。
 - **玩家接管检测**：暂停跟随期间如果玩家在女仆界面里、或用主模组的跟随工具把居家模式改了回去，视为玩家接管——该指令立即结束、**不再恢复**，只写一条 INFO 日志；放宽日程期间玩家改了日程，则该部分记录被丢弃且结束时不再恢复日程（移动指令继续、`work_time` 结束）。
@@ -375,7 +378,7 @@ tlm_sincerely/
 
 | 配置项 | 默认值 | 说明 |
 |---|---|---|
-| `MoveEnabled` | `true` | 是否把 `maid_move` 工具提供给女仆；关闭后该工具不会出现在模型工具列表中 |
+| `MoveEnabled` | `true` | 是否把 `maid_move` / `maid_guard` / `maid_work_time` / `maid_cancel` 这四个工具提供给女仆；关闭后它们都不会出现在模型工具列表中 |
 | `MoveDefaultDurationSeconds` | `600` | 模型没有传 `duration_seconds` 时使用的时长（秒，10~86400） |
 | `MoveMaxDurationSeconds` | `3600` | 单条指令 `duration_seconds` 的上限秒数（10~86400），超出时按此值截断。**旧版本默认值为 300，旧配置文件里已保存的旧值不会自动迁移** |
 | `MoveMaxActivePerOwner` | `8` | 同一主人名下全部女仆同时生效的指令条数上限（1~64），超出时新指令被拒绝并告知模型；永久指令同样占名额 |
@@ -452,7 +455,10 @@ tlm_sincerely/
 | `tlm_memory` | `remember`、`recall`、`forget`、`search`、`merge` | 女仆自主管理记忆 |
 | `run_command` | 由 LLM 生成命令 | 以主人身份执行 Minecraft 命令 |
 | `tell_maid` | 参数 `target`、`message` | 把一句话转告给同主人名下另一只女仆并请她回应；需安装并开启 Maid Self-Talk 的互聊，见「三、5. 女仆转告工具」 |
-| `maid_move` | `approach`、`retreat`、`goto`、`guard`、`stay`、`go_home`、`work_time`、`cancel` | 限时地走近 / 远离 / 前往坐标 / 守护某人 / 留在原地，或永久地回家；`work_time` 只把日程临时改成全天工作；`cancel` 取消当前指令，见「三、6. 移动指令」 |
+| `maid_move` | `approach`、`retreat`、`goto`、`stay`、`go_home` | 限时地走近 / 远离 / 前往坐标 / 留在原地，或永久地回家，见「三、6. 移动指令」 |
+| `maid_guard` | 参数 `target`、`distance`、`duration_seconds`、`permanent` | 守在某人身边并攻击威胁他的敌对生物，见「三、6. 移动指令」 |
+| `maid_work_time` | 参数 `duration_seconds`、`permanent` | 把日程临时改成全天工作，见「三、6. 移动指令」 |
+| `maid_cancel` | 可选参数 `reason`（仅写日志） | 取消当前指令并恢复被临时改动的状态，见「三、6. 移动指令」 |
 
 `auto_work` 不能创建、选择、重命名或删除预设：预设库属于玩家客户端，服务端不可见。工具会明确拒绝这些操作，并引导玩家在女仆 GUI 中完成。旧的数字优先级 `set` 语义已不再支持。
 
@@ -601,7 +607,7 @@ tlm_sincerely/
 | 命令执行 | `command/`、`ai/tool/MaidCommandTool.java` | [docs/女仆命令执行模块.md](docs/女仆命令执行模块.md) |
 | 多目标解析 | `chatbar/AtTargetParser.java`、`chatbar/MaidFinder.java` | [docs/聊天栏女仆对话模块.md](docs/聊天栏女仆对话模块.md) |
 | 女仆转告 | `ai/tool/TellMaidTool.java`、`ai/relay/SelfTalkBridge.java`、`ai/relay/RelayRateLimiter.java` | [docs/聊天栏女仆对话模块.md](docs/聊天栏女仆对话模块.md) |
-| 移动指令 | `ai/tool/MaidMoveTool.java`、`ai/move/MoveDirectiveManager.java`、`ai/move/MoveOrders.java`、`ai/move/MoveOrderData.java`、`ai/move/MoveOrderNbt.java`（持久化标签适配）、`ai/move/FollowSuspension.java`（暂停跟随与恢复决策）、`ai/move/ScheduleRelief.java`（临时放宽工作时间的纯决策）、`ai/move/MoveReminder.java`（永久指令提醒计时）、`ai/move/MoveDescribe.java`、`ai/move/MoveMath.java`、`ai/move/MoveProgress.java`（卡住检测与传送预算）、`ai/move/MaidSpeech.java`（女仆自己说一句话）、`ai/context/MaidMoveContext.java`（给模型看的当前指令栏目） | 无单独文档（见「三、6. 移动指令」） |
+| 移动指令 | `ai/tool/MaidMoveTool.java`、`ai/tool/MaidGuardTool.java`、`ai/tool/MaidWorkTimeTool.java`、`ai/tool/MaidCancelTool.java`（四个工具共用骨架 `ai/tool/MoveToolBase.java` 与目标解析 `ai/tool/MoveTargetResolver.java`）、`ai/move/MoveOrderPlacer.java`（登记一条指令的统一流程）、`ai/move/MoveNavigation.java`（走路 / 找落脚点 / 传送）、`ai/move/GuardCombat.java`（守护时设置攻击目标）、`ai/move/GoHome.java`（回家）、`ai/move/MoveLog.java`（日志小工具）、`ai/move/MoveDirectiveManager.java`、`ai/move/MoveOrders.java`、`ai/move/MoveOrderData.java`、`ai/move/MoveOrderNbt.java`（持久化标签适配）、`ai/move/FollowSuspension.java`（暂停跟随与恢复决策）、`ai/move/ScheduleRelief.java`（临时放宽工作时间的纯决策）、`ai/move/MoveReminder.java`（永久指令提醒计时）、`ai/move/MoveDescribe.java`、`ai/move/MoveMath.java`、`ai/move/MoveProgress.java`（卡住检测与传送预算）、`ai/move/MaidSpeech.java`（女仆自己说一句话）、`ai/context/MaidMoveContext.java`（给模型看的当前指令栏目） | 无单独文档（见「三、6. 移动指令」） |
 | 配置系统 | `config/`、`client/gui/ConfigScreen.java` | 无单独文档 |
 | 客户端集成 | `client/network/`、`client/jade/`、`mixin/` | 无单独文档 |
 

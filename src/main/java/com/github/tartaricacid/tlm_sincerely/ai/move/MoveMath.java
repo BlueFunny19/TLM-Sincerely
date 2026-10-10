@@ -68,6 +68,15 @@ public final class MoveMath {
         return Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, base));
     }
 
+    /**
+     * 指令持续秒数规整：没传（≤ 0，codec 的缺省哨兵是 -1）用默认值，传了的不超过上限。
+     * 默认值本身也不会超过上限。
+     */
+    public static int resolveDurationSeconds(int requested, int defaultSeconds, int maxSeconds) {
+        int seconds = requested <= 0 ? defaultSeconds : requested;
+        return Math.max(1, Math.min(seconds, maxSeconds));
+    }
+
     /** 距离是否已超过 distance + {@link #APPROACH_SLACK}（超过才需要重新下发靠近移动）。 */
     public static boolean needsApproach(double distanceSqr, double distance) {
         double limit = distance + APPROACH_SLACK;

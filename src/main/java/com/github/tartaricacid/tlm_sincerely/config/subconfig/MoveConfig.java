@@ -3,7 +3,7 @@ package com.github.tartaricacid.tlm_sincerely.config.subconfig;
 import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
- * 女仆移动指令（{@code maid_move} 工具）配置。
+ * 女仆移动类指令（{@code maid_move} / {@code maid_guard} / {@code maid_work_time} / {@code maid_cancel} 四个工具）配置。
  *
  * <p>指令本身是服务端内存态，但"指令 + 暂停跟随前的原状态"会写进女仆实体的持久化标签，
  * 因此服务器重启后能重新登记或精确恢复（见 {@code ai.move.MoveDirectiveManager}）。
@@ -23,7 +23,7 @@ public final class MoveConfig {
     public static void init(ForgeConfigSpec.Builder builder) {
         builder.push("move");
 
-        builder.comment("Expose the maid_move AI tool so a maid can approach, retreat, go to a place, guard someone, stay where she is or go home",
+        builder.comment("Expose the maid_move, maid_guard, maid_work_time and maid_cancel AI tools so a maid can approach, retreat, go to a place, guard someone, stay where she is, go home or work around the clock, and cancel it again",
                 "Timed orders live in server memory, but the order, the state saved before suspending follow and the schedule saved before forcing work time are written to the maid entity so they survive a server restart");
         MOVE_ENABLED = builder.define("MoveEnabled", true);
 

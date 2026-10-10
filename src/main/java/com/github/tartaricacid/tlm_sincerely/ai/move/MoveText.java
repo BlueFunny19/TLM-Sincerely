@@ -3,11 +3,11 @@ package com.github.tartaricacid.tlm_sincerely.ai.move;
 import java.util.List;
 
 /**
- * 移动指令工具（maid_move）里所有"给 LLM 看的文字"，中英各一套，由调用方按
- * {@code PromptLang.isChinese(PromptLang.of(maid))} 选择 {@code zh}。
+ * 移动类指令工具（maid_move / maid_guard / maid_work_time / maid_cancel）里所有"给 LLM 看的文字"，
+ * 中英各一套，由调用方按 {@code PromptLang.isChinese(PromptLang.of(maid))} 选择 {@code zh}。
  * <p>
  * 提示词集中在这里统一维护；工具逻辑只通过这些方法取文字，不要在别处另拼提示。
- * 动作名（approach / retreat / goto / guard / cancel）与参数名是机器标识，保持英文。
+ * 工具名、动作名（approach / retreat / goto / stay / go_home）与参数名是机器标识，保持英文。
  */
 public final class MoveText {
     private MoveText() {
@@ -15,50 +15,118 @@ public final class MoveText {
 
     // ===== 工具说明与参数说明 =====
 
-    public static String summary(boolean zh) {
+    /** {@code maid_move}：走近 / 远离 / 前往 / 留在原地 / 回家。 */
+    public static String moveSummary(boolean zh) {
         return zh ? """
-                指挥你自己（这只女仆）走近、远离、前往某处、守护某人、留在原地或回家。
-                什么时候用：玩家要你靠近或远离某人、去某个地方、保护 / 守护某人、在原地待着不动、或者回家（回到你的工作坐标）时。
-                什么时候不用：只是想让你一直跟着玩家，请用「切换跟随状态」工具；想让你去干活，请用「切换工作任务」工具；坐下或站起来请用「坐下」工具。
+                指挥你自己（这只女仆）走近、远离、前往某处、留在原地或回家。
+                什么时候用：玩家要你靠近或远离某人、去某个地方、在原地待着不动、或者回家（回到你的工作坐标）时。
+                什么时候不用：守护某人请用 maid_guard 工具；取消当前指令请用 maid_cancel 工具；想让你夜里也能工作请用 maid_work_time 工具；只是想让你一直跟着玩家，请用「切换跟随状态」工具；想让你去干活，请用「切换工作任务」工具；坐下或站起来请用「坐下」工具。
                 action 取值：
                 - approach：走近目标，保持在 distance 格以内。
                 - retreat：远离目标，保持在 distance 格以外。
                 - goto：前往坐标 x、y、z，到了以后在那里等着。
-                - guard：守护目标，待在目标身边 distance 格以内，并攻击威胁目标的敌对生物。
                 - stay：留在当前位置不动，也不再跟随主人（你原有的工作坐标会被暂时清掉，结束后恢复原样）。
-                - go_home：立刻传送回你自己的工作坐标，并进入居家模式。这是永久性的改变，没有时限，也不能用 cancel 取消；想让你重新跟着主人，要用「切换跟随状态」工具。你没有设置工作坐标时无法使用。
-                - work_time：不移动，只是把你的日程临时改成"全天工作"，这样夜里也能工作；之后再用「切换工作任务」工具让你去干活。
-                - cancel：取消你当前的移动指令（stay 会恢复成原来的样子，被改过的日程也会恢复）。
-                除 go_home 和 cancel 外，只要你不是正在睡觉，任何指令生效期间你的日程都会被临时改成全天工作，指令结束后恢复原来的日程。
+                - go_home：立刻传送回你自己的工作坐标，并进入居家模式。这是永久性的改变，没有时限，也不能用 maid_cancel 取消；想让你重新跟着主人，要用「切换跟随状态」工具。你没有设置工作坐标时无法使用。
                 target 填 me（或"我"）表示你的主人，也可以填同一主人名下另一只女仆的名字；不能填你自己。
-                指令默认持续 10 分钟，到了 duration_seconds 就自动结束；新指令会覆盖旧指令。
-                如果玩家的意思是"一直这样""持续保持"（例如"一直守着澪""在这儿一直等我"），把 permanent 设为 true，指令就不会超时，直到玩家让你取消；这时你必须在回复里明确告诉玩家：你会一直这样做，想让你停下只要跟你说一声。
+                指令默认持续 10 分钟，到了 duration_seconds 就自动结束；新指令（包括 maid_guard、maid_work_time）会覆盖旧指令。
+                如果玩家的意思是"一直这样""持续保持"（例如"在这儿一直等我"），把 permanent 设为 true，指令就不会超时，直到玩家让你取消；这时你必须在回复里明确告诉玩家：你会一直这样做，想让你停下只要跟你说一声。
+                只要你不是正在睡觉，指令生效期间你的日程都会被临时改成全天工作，指令结束后恢复原来的日程（go_home 除外）。
                 如果路走不通，距离不太远时系统会直接把你传送到位；距离太远就会放弃指令。无论哪种情况，系统都会替你在聊天栏里说一句话告诉玩家，你不用再重复说明。
-                守护时只有在你当前的任务是战斗类任务时才会主动攻击，否则只会守在目标身边。
                 """.trim() : """
-                Command yourself (this maid) to approach, retreat from, go to a place, guard someone, stay where you are, or go home.
-                Use it when: the player asks you to come closer to / move away from someone, go somewhere, protect / guard someone, wait where you are, or go home (back to your work position).
-                Do not use it when: the player only wants you to keep following them (use the follow-state tool), wants you to work (use the work-task tool), or wants you to sit or stand (use the sit tool).
+                Command yourself (this maid) to approach, retreat from, go to a place, stay where you are, or go home.
+                Use it when: the player asks you to come closer to / move away from someone, go somewhere, wait where you are, or go home (back to your work position).
+                Do not use it when: guarding someone (use the maid_guard tool), cancelling the current order (use the maid_cancel tool), working at night as well (use the maid_work_time tool), the player only wants you to keep following them (use the follow-state tool), wants you to work (use the work-task tool), or wants you to sit or stand (use the sit tool).
                 Values of 'action':
                 - approach: move toward the target and stay within 'distance' blocks.
                 - retreat: move away from the target and stay beyond 'distance' blocks.
                 - goto: go to the coordinates x, y, z and wait there.
-                - guard: stay within 'distance' blocks of the target and attack hostile mobs that threaten it.
                 - stay: stay exactly where you are and stop following your owner (your work position is cleared temporarily and restored afterwards).
-                - go_home: teleport back to your own work position right away and enter home mode. This is a permanent change with no time limit and cannot be undone with cancel; to make you follow your owner again the follow-state tool must be used. It does not work when you have no work position.
-                - work_time: do not move, only switch your schedule to "work around the clock" temporarily so that you can work at night as well; afterwards use the work-task tool to start working.
-                - cancel: cancel your current movement order (stay restores your previous state, and a changed schedule is restored too).
-                Except for go_home and cancel, whenever you are not asleep your schedule is switched to "work around the clock" while any order is active, and your original schedule is restored when the order ends.
+                - go_home: teleport back to your own work position right away and enter home mode. This is a permanent change with no time limit and cannot be undone with maid_cancel; to make you follow your owner again the follow-state tool must be used. It does not work when you have no work position.
                 'target' is 'me' for your owner, or the name of another maid of the same owner; never yourself.
-                An order lasts 10 minutes by default and ends after 'duration_seconds'; a new order replaces the old one.
-                If the player means "keep doing this" (for example "keep guarding Mio", "wait here for me"), set 'permanent' to true: the order never times out until the player tells you to cancel it. In that case you MUST tell the player in your reply that you will keep doing it and that they only need to tell you when to stop.
+                An order lasts 10 minutes by default and ends after 'duration_seconds'; a new order (including maid_guard and maid_work_time) replaces the old one.
+                If the player means "keep doing this" (for example "wait here for me"), set 'permanent' to true: the order never times out until the player tells you to cancel it. In that case you MUST tell the player in your reply that you will keep doing it and that they only need to tell you when to stop.
+                Whenever you are not asleep your schedule is switched to "work around the clock" while the order is active, and your original schedule is restored when the order ends (except for go_home).
                 If the path is blocked, you are teleported into place when the distance is not too large; when it is too far the order is dropped. Either way the system says a line in chat on your behalf, so you do not need to explain it again.
-                While guarding you only attack actively if your current task is a combat task; otherwise you just stay beside the target.
                 """.trim();
     }
 
-    public static String actionDesc(boolean zh) {
+    /** {@code maid_guard}：守护某人。 */
+    public static String guardSummary(boolean zh) {
+        return zh ? """
+                让你守护某人：待在目标身边 distance 格以内，并攻击威胁目标的敌对生物。
+                什么时候用：玩家要你保护、守护、护送某人（主人，或同一主人名下的另一只女仆）时。
+                什么时候不用：只是走近某人请用 maid_move 的 approach；取消守护请用 maid_cancel 工具。
+                target 填 me（或"我"）表示你的主人，也可以填同一主人名下另一只女仆的名字；不能填你自己。
+                守护默认持续 10 分钟，到了 duration_seconds 就自动结束；新指令（包括 maid_move、maid_work_time）会覆盖旧指令。
+                如果玩家的意思是"一直守着"（例如"一直守着澪"），把 permanent 设为 true，守护就不会超时，直到玩家让你取消；这时你必须在回复里明确告诉玩家：你会一直守着，想让你停下只要跟你说一声。
+                只有在你当前的任务是战斗类任务时才会主动攻击，否则只会守在目标身边；需要战斗时，先用「切换工作任务」工具切换到战斗类任务。
+                只要你不是正在睡觉，守护期间你的日程都会被临时改成全天工作，结束后恢复原来的日程。
+                如果路走不通，距离不太远时系统会直接把你传送到位；距离太远就会放弃。无论哪种情况，系统都会替你在聊天栏里说一句话告诉玩家，你不用再重复说明。
+                """.trim() : """
+                Guard someone: stay within 'distance' blocks of the target and attack hostile mobs that threaten it.
+                Use it when: the player asks you to protect, guard or escort someone (your owner, or another maid of the same owner).
+                Do not use it when: you only need to walk up to someone (use maid_move with 'approach'), or to stop guarding (use the maid_cancel tool).
+                'target' is 'me' for your owner, or the name of another maid of the same owner; never yourself.
+                Guarding lasts 10 minutes by default and ends after 'duration_seconds'; a new order (including maid_move and maid_work_time) replaces the old one.
+                If the player means "keep guarding" (for example "keep guarding Mio"), set 'permanent' to true: guarding never times out until the player tells you to cancel. In that case you MUST tell the player in your reply that you will keep guarding and that they only need to tell you when to stop.
+                You only attack actively if your current task is a combat task; otherwise you just stay beside the target. If fighting is needed, first switch to a combat task with the work-task tool.
+                Whenever you are not asleep your schedule is switched to "work around the clock" while you guard, and your original schedule is restored afterwards.
+                If the path is blocked, you are teleported into place when the distance is not too large; when it is too far the order is dropped. Either way the system says a line in chat on your behalf, so you do not need to explain it again.
+                """.trim();
+    }
+
+    /** {@code maid_work_time}：临时改成全天工作。 */
+    public static String workTimeSummary(boolean zh) {
+        return zh ? """
+                不移动，只是把你的日程临时改成"全天工作"，这样夜里也能工作；之后再用「切换工作任务」工具让你去干活。
+                什么时候用：玩家让你"别休息了""今晚加班""现在就去干活"，而现在又不是你的工作时间时。
+                什么时候不用：你正在睡觉时不能用（会被拒绝，也不会改变任何状态）；日程本来就是全天工作时也不需要。想让你回到正常作息，用 maid_cancel 工具。
+                默认持续 10 分钟，到了 duration_seconds 就自动结束，日程恢复原样；新指令（包括 maid_move、maid_guard）会覆盖它。
+                如果玩家的意思是"一直这样"，把 permanent 设为 true，就不会超时，直到玩家让你取消；这时你必须在回复里明确告诉玩家：你会一直全天工作，想让你恢复作息只要跟你说一声。
+                """.trim() : """
+                Do not move; only switch your schedule to "work around the clock" temporarily so that you can work at night as well. Afterwards use the work-task tool to start working.
+                Use it when: the player tells you to stop resting, to work overtime tonight, or to get to work right now while it is not your working time.
+                Do not use it when: you are asleep (it is refused and nothing changes), or your schedule is already work-around-the-clock. To go back to your normal routine use the maid_cancel tool.
+                It lasts 10 minutes by default and ends after 'duration_seconds', when your schedule is restored; a new order (including maid_move and maid_guard) replaces it.
+                If the player means "keep doing this", set 'permanent' to true: it never times out until the player tells you to cancel. In that case you MUST tell the player in your reply that you will keep working around the clock and that they only need to tell you when to go back to normal.
+                """.trim();
+    }
+
+    /** {@code maid_cancel}：取消当前指令。 */
+    public static String cancelSummary(boolean zh) {
+        return zh ? """
+                取消你当前正在执行的指令（由 maid_move、maid_guard、maid_work_time 下达的）。
+                什么时候用：玩家让你"停下""不用了""别守着了""恢复正常"时。
+                取消后，因这条指令被临时改动的状态会恢复原样：留在原地（stay）会恢复居家模式与工作坐标，被临时放宽的日程会恢复。go_home 是永久性的改变，不能用它取消。
+                你现在没有指令时调用它也没有副作用，只会告诉你"没有需要取消的指令"。
+                """.trim() : """
+                Cancel the order you are currently carrying out (given through maid_move, maid_guard or maid_work_time).
+                Use it when: the player tells you to stop, that it is no longer needed, to stop guarding, or to go back to normal.
+                Anything that was changed temporarily because of the order is restored: 'stay' restores home mode and your work position, and a widened schedule is restored. go_home is a permanent change and cannot be cancelled with this tool.
+                Calling it when you have no order is harmless; it just tells you there is nothing to cancel.
+                """.trim();
+    }
+
+    public static String moveActionDesc(boolean zh) {
         return zh ? "要执行的移动指令" : "The movement order to perform";
+    }
+
+    public static String cancelReasonDesc(boolean zh) {
+        return zh ? "取消的原因（可选，只用于记录日志，例如玩家说了什么）。"
+                : "Why the order is cancelled (optional, only written to the log, for example what the player said).";
+    }
+
+    /** 模型把别的工具的动作传给了 maid_move 时，告诉它该用哪个工具。 */
+    public static String wrongTool(boolean zh, String action) {
+        String tool = switch (action) {
+            case "guard" -> "maid_guard";
+            case "work_time" -> "maid_work_time";
+            case "cancel" -> "maid_cancel";
+            default -> "maid_move";
+        };
+        return zh ? "action '" + action + "' 不属于 maid_move，请改用 " + tool + " 工具（maid_move 只支持 approach、retreat、goto、stay、go_home）。"
+                : "Action '" + action + "' does not belong to maid_move; use the " + tool
+                + " tool instead (maid_move only supports approach, retreat, goto, stay, go_home).";
     }
 
     public static String targetDesc(boolean zh) {
@@ -72,10 +140,16 @@ public final class MoveText {
                 : "Target coordinate " + axis + " for goto (block coordinates, decimals allowed).";
     }
 
-    public static String distanceDesc(boolean zh) {
+    public static String moveDistanceDesc(boolean zh) {
         return zh
-                ? "距离（格，1~64）。approach 默认 3；retreat 默认 16；guard 默认 5（守护半径）。"
-                : "Distance in blocks (1-64). Defaults: approach 3, retreat 16, guard 5 (guard radius).";
+                ? "距离（格，1~64）。approach 默认 3；retreat 默认 16。"
+                : "Distance in blocks (1-64). Defaults: approach 3, retreat 16.";
+    }
+
+    public static String guardDistanceDesc(boolean zh) {
+        return zh
+                ? "守护半径（格，1~64），默认 5：待在目标身边这么远以内。"
+                : "Guard radius in blocks (1-64), default 5: how close to the target you stay.";
     }
 
     public static String durationDesc(boolean zh, int maxSeconds) {
@@ -95,22 +169,24 @@ public final class MoveText {
 
     /** 指令成功生效。{@code targetName} 对 goto 传坐标描述（如 "(100, 64, -20)"），对 cancel 不使用。 */
     public static String started(boolean zh, String action, String maidName, String targetName, int seconds) {
-        String verbZh = switch (action) {
-            case "approach" -> "走近" + targetName;
-            case "retreat" -> "远离" + targetName;
-            case "goto" -> "前往" + targetName;
-            case "guard" -> "守护" + targetName;
+        String verb = orderVerb(zh, action, targetName);
+        return zh ? "已让" + maidName + "开始" + verb + "，将持续约 " + seconds + " 秒。"
+                : maidName + " will now " + verb + " for about " + seconds + " seconds.";
+    }
+
+    /**
+     * 指令的动词短语（接在"已让某某开始"或"will now"后面）：「走近主人」/ "approach the owner"。
+     * {@code targetName} 对 goto 传坐标描述；stay 不使用。
+     */
+    public static String orderVerb(boolean zh, String action, String targetName) {
+        return switch (action) {
+            case "approach" -> zh ? "走近" + targetName : "approach " + targetName;
+            case "retreat" -> zh ? "远离" + targetName : "move away from " + targetName;
+            case "goto" -> zh ? "前往" + targetName : "go to " + targetName;
+            case "guard" -> zh ? "守护" + targetName : "guard " + targetName;
+            case "stay" -> zh ? "留在原地" : "stay where she is";
             default -> action;
         };
-        String verbEn = switch (action) {
-            case "approach" -> "approach " + targetName;
-            case "retreat" -> "move away from " + targetName;
-            case "goto" -> "go to " + targetName;
-            case "guard" -> "guard " + targetName;
-            default -> action;
-        };
-        return zh ? "已让" + maidName + "开始" + verbZh + "，将持续约 " + seconds + " 秒。"
-                : maidName + " will now " + verbEn + " for about " + seconds + " seconds.";
     }
 
     public static String cancelled(boolean zh, String maidName, boolean hadOrder) {
@@ -300,11 +376,11 @@ public final class MoveText {
         if (zh) {
             return "你正在" + detail + (permanent ? "，没有时限（永久），直到玩家让你取消。"
                     : "，还剩约 " + remainingSeconds + " 秒。")
-                    + "玩家问起你在做什么、或者让你取消时，据此回答，需要取消时调用 maid_move 的 cancel。";
+                    + "玩家问起你在做什么、或者让你取消时，据此回答，需要取消时调用 maid_cancel。";
         }
         return "You are " + detail + (permanent ? " with no time limit until the player tells you to cancel."
                 : ", about " + remainingSeconds + " seconds left.")
-                + " Answer from this when the player asks what you are doing, and call maid_move with 'cancel' when asked to stop.";
+                + " Answer from this when the player asks what you are doing, and call maid_cancel when asked to stop.";
     }
 
     // ===== 追加（本次任务新增的场景；上面的文字均未改动） =====

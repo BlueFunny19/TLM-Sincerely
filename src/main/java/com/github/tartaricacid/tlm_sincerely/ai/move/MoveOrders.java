@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * {@code maid_move} 的指令表：每只女仆（UUID）最多一条当前指令，新的覆盖旧的。
+ * 移动类指令（maid_move / maid_guard / maid_work_time）的指令表：每只女仆（UUID）最多一条当前指令，新的覆盖旧的。
  * <p>
  * 纯 Java 内存态，不引用任何 Minecraft 类型，也不持有世界/实体引用，便于单元测试；
  * 实体解析、移动下发与清理时机由 {@link MoveDirectiveManager} 负责。
