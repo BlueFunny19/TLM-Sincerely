@@ -230,5 +230,20 @@
     "config.tlm_sincerely.overtime.task_switch_enabled": "切换工作任务时允许加班",
     "config.tlm_sincerely.overtime.task_switch_enabled.tooltip": "玩家（通过模型）在女仆不是工作时间时让她切换工作任务，不再回答“现在不是工作时间”，而是把她的日程临时改成全天工作，让她把活干起来；结束后恢复原日程。加班期间你手动改日程（女仆界面或主模组 switch_schedule 工具）会被视为接管，不会再改回去",
     "config.tlm_sincerely.overtime.task_hold_seconds": "加班持续时间（秒）",
-    "config.tlm_sincerely.overtime.task_hold_seconds.tooltip": "切换工作任务触发的加班，在没有新指令时最多持续多久（秒，30-3600）；每次再切换任务都会重新计时，计时用完（或女仆被切到待命任务）就恢复原日程。目前没有可靠的办法判断每一种任务“活已经干完”，这个计时就是“活干完了”的替身"
+    "config.tlm_sincerely.overtime.task_hold_seconds.tooltip": "切换工作任务触发的加班，在没有新指令时最多持续多久（秒，30-3600）；每次再切换任务都会重新计时，计时用完（或女仆被切到待命任务）就恢复原日程。目前没有可靠的办法判断每一种任务“活已经干完”，这个计时就是“活干完了”的替身",
+    "config.tlm_sincerely.overtime.soft_cap_enabled": "加班疲劳上限",
+    "config.tlm_sincerely.overtime.soft_cap_enabled.tooltip": "女仆在本该睡觉的时段里加班太久会累。只有“原日程此刻是休息时段”的加班才计入，工作时间和休闲时间的加班不累积；约 5 分钟不加班就完全恢复。累了之后会怎样由下面的“要点心”和“抱怨”决定",
+    "config.tlm_sincerely.overtime.soft_cap_seconds": "疲劳上限（秒）",
+    "config.tlm_sincerely.overtime.soft_cap_seconds.tooltip": "在休息时段里加班多少秒后女仆会累（现实秒，30-3600）",
+    "config.tlm_sincerely.overtime.complain_enabled": "累了会抱怨",
+    "config.tlm_sincerely.overtime.complain_enabled.tooltip": "关闭“要点心”时，女仆累了只会抱怨一句并继续干活；关掉这一项就连抱怨也没有。开启“要点心”时，要点心的那句话总会说",
+    "config.tlm_sincerely.overtime.treat_enabled": "累了向主人要点心",
+    "config.tlm_sincerely.overtime.treat_enabled.tooltip": "达到疲劳上限后，女仆会向主人要点心并走到主人身边；拿到就能多撑一会儿。在“等待时长”内没要到（或主人不在线 / 太远），她就放下手头的活去休息，并且这段休息时间内不能再让她加班。关闭后她只会抱怨并继续干活",
+    "config.tlm_sincerely.overtime.treats": "可接受的点心",
+    "config.tlm_sincerely.overtime.treats.tooltip": "格式“命名空间:物品=秒数”，例如 minecraft:cake=300 表示一个蛋糕让她多撑 300 秒。她要点心时右键递给她，或者放进她的背包。格式不对的条目会被忽略",
+    "config.tlm_sincerely.overtime.eat_own_treats": "先吃自己背包里的点心",
+    "config.tlm_sincerely.overtime.eat_own_treats.tooltip": "累了时如果她自己的背包里有点心表里的物品，直接吃掉，不再向主人要",
+    "config.tlm_sincerely.overtime.treat_wait_seconds": "要点心的等待时长（秒）",
+    "config.tlm_sincerely.overtime.treat_wait_seconds.tooltip": "女仆累了向主人要点心后最多等多久（秒，10-600），没要到就去休息",
+    "chat.tlm_sincerely.overtime.treat_hint": "%s 累了，想要一点点心（右键递给她，或放进她的背包）：%s"
 }

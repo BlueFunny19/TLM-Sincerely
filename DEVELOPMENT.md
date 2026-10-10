@@ -611,3 +611,13 @@ Remove-Item run\config\tlm_sincerely* -Force
 - **旧存档兼容**：旧版本把原日程写在指令标签的 `originalSchedule` 键里。`MoveOrderData` 去掉该字段、`MoveOrderNbt` 不再写它，但保留 `readLegacyOriginalSchedule` / `stripLegacyOriginalSchedule`：`OvertimeManager.onMaidLoaded` 在没有自己的标签时接收一次并立即去掉旧键，免得之后重复接收。
 - **`MaidLookup`**：把散落的"按 UUID 在所有维度找女仆"收成一个小工具（`MoveDirectiveManager`、`OvertimeManager` 在用）。
 - **验证状态**：云端 Gradle 全量构建通过；新增 `ScheduleTimelineTest`（6）、`OvertimeNbtTest`（11），并更新 `MoveOrderDataTest` / `MoveOrdersTest` / `MoveOrderNbtTest`。**未做实机验证**：`SwitchWorkTaskToolMixin` 的 `@Redirect` 能否在真实环境里命中（`require = 0`，失败只会退回"不在工作时间"）、加班期间主模组日程刷新与我们 `setSchedule` 的交互、重启后的恢复时序。
+
+### 2026-10-10 加班 T5b：疲劳软上限 + 点心
+
+- **纯逻辑与副作用分开**：`OvertimeFatigue`（累积 / 额外时长 / 要点心阶段 / 歇够清零，不依赖 Minecraft 类型）、`TreatTable`（解析 `命名空间:物品=秒数`，容错）、`OvertimeText`（中英台词）都有单测；`OvertimeManager` 里的 `tickFatigue` / `onTired` / `tickAsking` / `sendToRest` 只做取背包、说话、走路、取消指令这些副作用。
+- **只在原日程是休息时段时累积**：判断用 `ScheduleTimeline.phaseAt(原日程, dayTime)`，所以工作 / 休闲时段的加班不会累。`ticksUntilPhaseChange` 用来算“这段休息什么时候结束”，锁定期（`LOCKOUT`，到那个游戏刻为止）据此设置。
+- **疲劳与锁定期只存内存**：重启清零。存进标签要多一套兼容与迁移，而这是个软约束，不值得；已写进 WIKI 的限制里。
+- **点心的收法有两条路**：右键（`OvertimeTreatHandler` 监听 `PlayerInteractEvent.EntityInteract`，仅主手、仅主人、仅在她“要点心”阶段才吃掉这次交互，其余交互照常交给主模组打开界面）和放进背包（要点心阶段每 20 tick 扫一次背包）。女仆台词里不写点心名字（`MaidSpeech` 只吃纯字符串），点心名字走另一条可本地化的系统消息发给主人。
+- **去休息时取消手头的指令**：`sendToRest` 调 `MoveDirectiveManager.cancelAndRestore`，让指令占着的暂停跟随、加班一并恢复，再对剩下的加班状态做一次强制收尾。这是临时选择，已记入“待用户决定”。
+- **要点心期间移动指令暂停下发**（`MoveDirectiveManager.step` 里 `OvertimeManager.isAsking`），否则每 10 tick 重下 `WALK_TARGET` 会和“走向主人”互相拉扯。
+- **验证状态**：云端 Gradle 全量构建通过（229 个测试）；新增 `OvertimeFatigueTest`、`TreatTableTest`，并给 `ScheduleTimelineTest` 加了 `ticksUntilPhaseChange`。**未做实机验证**：右键递点心是否被主模组的交互抢先处理、`walkToEntity` 走向主人的效果、取消指令后的状态恢复。

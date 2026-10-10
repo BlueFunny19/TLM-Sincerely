@@ -6,6 +6,7 @@ import com.github.tartaricacid.tlm_sincerely.ai.move.MoveMath;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveOrderPlacer;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveText;
 import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeManager;
+import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeText;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
 import com.github.tartaricacid.touhoulittlemaid.ai.service.function.schema.parameter.ObjectParameter;
 import com.github.tartaricacid.touhoulittlemaid.ai.service.function.schema.parameter.Parameter;
@@ -75,6 +76,10 @@ public class MaidWorkTimeTool extends MoveToolBase<MaidWorkTimeTool.Result> {
         if (OvertimeManager.isScheduleAll(maid)) {
             logRejected(ctx, "schedule-already-all", "");
             return MoveText.workTimeAlready(zh, ctx.maidName());
+        }
+        if (OvertimeManager.isTiredLockedOut(maid)) {
+            logRejected(ctx, "tired-resting", "");
+            return OvertimeText.tiredNote(zh, ctx.maidName());
         }
         boolean permanent = result.permanent();
         if (permanent && !MoveConfig.MOVE_ALLOW_PERMANENT.get()) {

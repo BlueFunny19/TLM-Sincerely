@@ -124,7 +124,7 @@ public class MaidGuardTool extends MoveToolBase<MaidGuardTool.Result> {
         if (!(maid.getTask() instanceof IAttackTask)) {
             message = message + " " + MoveText.guardNoCombatNote(zh);
         }
-        String scheduleNote = scheduleNote(zh, placement.overtime());
+        String scheduleNote = scheduleNote(zh, ctx.maidName(), placement.overtime());
         if (!scheduleNote.isEmpty()) {
             message = message + " " + scheduleNote;
         }

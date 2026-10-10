@@ -51,4 +51,18 @@ public final class ScheduleTimeline {
         }
         return Phase.WORK;
     }
+
+    /**
+     * 当前所处的时段还要持续多少 tick（到下一个不同的时段为止）；一整天都不变（全天工作）时返回一整天。
+     * 用来算"这段休息时间什么时候结束"。
+     */
+    public static long ticksUntilPhaseChange(@Nullable String scheduleName, long dayTime) {
+        Phase current = phaseAt(scheduleName, dayTime);
+        for (int step = 1; step <= DAY_LENGTH; step++) {
+            if (phaseAt(scheduleName, dayTime + step) != current) {
+                return step;
+            }
+        }
+        return DAY_LENGTH;
+    }
 }

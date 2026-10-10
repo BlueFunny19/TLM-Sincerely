@@ -624,6 +624,66 @@ public final class ConfigScreen {
                 .setSaveConsumer(OvertimeConfig.TASK_HOLD_SECONDS::set)
                 .build());
 
+        overtime.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.overtime.soft_cap_enabled"),
+                        OvertimeConfig.SOFT_CAP_ENABLED.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.overtime.soft_cap_enabled.tooltip"))
+                .setSaveConsumer(OvertimeConfig.SOFT_CAP_ENABLED::set)
+                .build());
+
+        overtime.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.overtime.soft_cap_seconds"),
+                        OvertimeConfig.SOFT_CAP_SECONDS.get())
+                .setDefaultValue(180)
+                .setMin(30)
+                .setMax(3600)
+                .setTooltip(Component.translatable("config.tlm_sincerely.overtime.soft_cap_seconds.tooltip"))
+                .setSaveConsumer(OvertimeConfig.SOFT_CAP_SECONDS::set)
+                .build());
+
+        overtime.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.overtime.complain_enabled"),
+                        OvertimeConfig.COMPLAIN_ENABLED.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.overtime.complain_enabled.tooltip"))
+                .setSaveConsumer(OvertimeConfig.COMPLAIN_ENABLED::set)
+                .build());
+
+        overtime.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.overtime.treat_enabled"),
+                        OvertimeConfig.TREAT_ENABLED.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.overtime.treat_enabled.tooltip"))
+                .setSaveConsumer(OvertimeConfig.TREAT_ENABLED::set)
+                .build());
+
+        overtime.add(entryBuilder.startStrList(
+                        Component.translatable("config.tlm_sincerely.overtime.treats"),
+                        new ArrayList<>(OvertimeConfig.TREATS.get()))
+                .setDefaultValue(new ArrayList<>(OvertimeConfig.DEFAULT_TREATS))
+                .setTooltip(Component.translatable("config.tlm_sincerely.overtime.treats.tooltip"))
+                .setSaveConsumer(OvertimeConfig.TREATS::set)
+                .build());
+
+        overtime.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.overtime.eat_own_treats"),
+                        OvertimeConfig.EAT_OWN_TREATS.get())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("config.tlm_sincerely.overtime.eat_own_treats.tooltip"))
+                .setSaveConsumer(OvertimeConfig.EAT_OWN_TREATS::set)
+                .build());
+
+        overtime.add(entryBuilder.startIntField(
+                        Component.translatable("config.tlm_sincerely.overtime.treat_wait_seconds"),
+                        OvertimeConfig.TREAT_WAIT_SECONDS.get())
+                .setDefaultValue(90)
+                .setMin(10)
+                .setMax(600)
+                .setTooltip(Component.translatable("config.tlm_sincerely.overtime.treat_wait_seconds.tooltip"))
+                .setSaveConsumer(OvertimeConfig.TREAT_WAIT_SECONDS::set)
+                .build());
+
         addon.addEntry(overtime.build());
     }
 

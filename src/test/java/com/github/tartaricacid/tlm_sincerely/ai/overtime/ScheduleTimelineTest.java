@@ -53,4 +53,28 @@ class ScheduleTimelineTest {
     void negativeDayTime_doesNotCrash() {
         assertEquals(Phase.REST, ScheduleTimeline.phaseAt("DAY", -1));
     }
+
+    @Test
+    void ticksUntilPhaseChange_dayScheduleRestRunsToTheEndOfTheDay() {
+        assertEquals(7000L, ScheduleTimeline.ticksUntilPhaseChange("DAY", 17000));
+        assertEquals(1L, ScheduleTimeline.ticksUntilPhaseChange("DAY", 23999));
+        assertEquals(12000L, ScheduleTimeline.ticksUntilPhaseChange("DAY", 0));
+    }
+
+    @Test
+    void ticksUntilPhaseChange_nightScheduleRestEndsAt8000() {
+        assertEquals(1L, ScheduleTimeline.ticksUntilPhaseChange("NIGHT", 7999));
+        assertEquals(8000L, ScheduleTimeline.ticksUntilPhaseChange("NIGHT", 0));
+    }
+
+    @Test
+    void ticksUntilPhaseChange_allDayWorkNeverChanges() {
+        assertEquals(24000L, ScheduleTimeline.ticksUntilPhaseChange("ALL", 5000));
+        assertEquals(24000L, ScheduleTimeline.ticksUntilPhaseChange(null, 5000));
+    }
+
+    @Test
+    void ticksUntilPhaseChange_worksAcrossDays() {
+        assertEquals(7000L, ScheduleTimeline.ticksUntilPhaseChange("DAY", 24000L * 5 + 17000));
+    }
 }

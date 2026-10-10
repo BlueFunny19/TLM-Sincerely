@@ -520,6 +520,10 @@ public final class MoveDirectiveManager {
             removeOrder(maid.getUUID(), maid, "cancel-order");
             return;
         }
+        if (OvertimeManager.isAsking(maid.getUUID())) {
+            // 她累了正走向主人要点心：先不下发新的移动目标，免得和"走向主人"互相拉扯
+            return;
+        }
         if (order.action() == MoveAction.WORK_TIME) {
             // work_time 的唯一作用就是让她加班。加班被玩家接管（日程被改成别的值，加班管理器已经丢掉记录）后
             // 它已经没有意义：结束指令。移动类指令则不受影响，照旧继续。

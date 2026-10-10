@@ -1,15 +1,29 @@
 package com.github.tartaricacid.tlm_sincerely.ai.overtime;
 
 import com.github.tartaricacid.tlm_sincerely.ai.MaidLookup;
+import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
+import com.github.tartaricacid.tlm_sincerely.ai.move.MaidSpeech;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
+import com.github.tartaricacid.tlm_sincerely.ai.move.MoveNavigation;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveOrderNbt;
+import com.github.tartaricacid.tlm_sincerely.chatbar.MaidFinder;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.OvertimeConfig;
 import com.github.tartaricacid.touhoulittlemaid.entity.ai.brain.MaidSchedule;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import com.github.tartaricacid.touhoulittlemaid.entity.task.TaskManager;
+import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +54,11 @@ import static com.github.tartaricacid.tlm_sincerely.ai.move.MoveLog.shortId;
  *   <li>女仆不在场（区块卸载 / 被移除）时无法恢复日程，记录原样保留到她重新加载。</li>
  * </ul>
  *
+ * <p><b>疲劳软上限</b>（{@link OvertimeFatigue}）：在本该睡觉的时段里加班超过 {@code OvertimeSoftCapSeconds}，
+ * 女仆会累。开启点心功能时：背包里有点心就直接吃，没有就走向主人开口要；等 {@code OvertimeTreatWaitSeconds}
+ * 还没要到（或主人不在附近），她就撑不住了——取消手头的指令、结束加班回去休息，并且这段休息时间内不能再被安排加班。
+ * 关闭点心功能时只是抱怨一句继续干。疲劳状态和休息锁定只存在内存里，重启后清零。
+ *
  * <p>所有方法都必须在服务端主线程调用。
  */
 public final class OvertimeManager {
@@ -47,6 +66,9 @@ public final class OvertimeManager {
 
     /** 处理周期（tick）。 */
     private static final int TICK_INTERVAL = 20;
+
+    /** 点心的"走近主人"到位半径（格）。 */
+    private static final int TREAT_APPROACH_DISTANCE = 2;
 
     /** 一只女仆当前的加班运行状态（内存里的权威值；变化时同步写进实体标签）。 */
     private static final class State {
@@ -67,6 +89,12 @@ public final class OvertimeManager {
 
     private static final Map<UUID, State> STATES = new HashMap<>();
 
+    /** 每只女仆的疲劳计时；跨越多次加班保留，歇够了（见 {@link OvertimeFatigue#recovered}）才清零。 */
+    private static final Map<UUID, OvertimeFatigue> FATIGUE = new HashMap<>();
+
+    /** 累坏了去休息的女仆：到这个 gameTime（本段休息时间结束）之前不能再加班。 */
+    private static final Map<UUID, Long> LOCKOUT = new HashMap<>();
+
     private static int tickCounter;
 
     private OvertimeManager() {
@@ -78,8 +106,15 @@ public final class OvertimeManager {
      * @param action           对日程做了什么（{@link ScheduleRelief.Action#UNCHANGED} 表示没有开始加班）
      * @param originalSchedule 加班前的日程名；没有开始加班时为 null
      * @param sleeping         没开始加班是不是因为她正在睡觉（给模型的说明文字要区分）
+     * @param tired            没开始加班是不是因为她刚累坏了去休息、这段休息时间内不能再加班
      */
-    public record Acquisition(ScheduleRelief.Action action, @Nullable String originalSchedule, boolean sleeping) {
+    public record Acquisition(ScheduleRelief.Action action, @Nullable String originalSchedule,
+                              boolean sleeping, boolean tired) {
+        /** 没有开始加班，也不是因为睡觉或疲劳（例如本来就是全天工作、配置关闭）。 */
+        public static Acquisition notStarted() {
+            return new Acquisition(ScheduleRelief.Action.UNCHANGED, null, false, false);
+        }
+
         /** 她现在是否处在加班里（本次新开始，或沿用已有的）。 */
         public boolean active() {
             return action != ScheduleRelief.Action.UNCHANGED;
@@ -104,6 +139,28 @@ public final class OvertimeManager {
         return maid != null && maid.getSchedule() == MaidSchedule.ALL;
     }
 
+    /** 她是否正累得在向主人要点心（此时移动指令暂停下发，免得和她走向主人互相拉扯）。 */
+    public static boolean isAsking(@Nullable UUID maidId) {
+        OvertimeFatigue fatigue = maidId == null ? null : FATIGUE.get(maidId);
+        return fatigue != null && fatigue.isAsking() && STATES.containsKey(maidId);
+    }
+
+    /** 她是否刚累坏了去休息，这段休息时间内不能再加班。 */
+    public static boolean isTiredLockedOut(@Nullable EntityMaid maid) {
+        if (maid == null) {
+            return false;
+        }
+        Long until = LOCKOUT.get(maid.getUUID());
+        if (until == null) {
+            return false;
+        }
+        if (maid.level().getGameTime() >= until) {
+            LOCKOUT.remove(maid.getUUID());
+            return false;
+        }
+        return true;
+    }
+
     // ===== 开始 / 结束加班 =====
 
     /**
@@ -114,6 +171,11 @@ public final class OvertimeManager {
      */
     public static Acquisition acquire(EntityMaid maid, OvertimeHolder holder, boolean configAllows) {
         UUID maidId = maid.getUUID();
+        if (isTiredLockedOut(maid)) {
+            LOGGER.info("[overtime] not started: the maid is exhausted and resting. maid={} holder={}",
+                    shortId(maidId), holder.id());
+            return new Acquisition(ScheduleRelief.Action.UNCHANGED, null, false, true);
+        }
         // 先处理"玩家接管"：加班期间日程被改成别的值就丢掉旧记录，后面按当前日程重新判定
         reconcile(maidId, maid, "acquire");
         State state = STATES.get(maidId);
@@ -126,22 +188,24 @@ public final class OvertimeManager {
                 if (original == null) {
                     LOGGER.warn("[overtime] cannot read the current schedule, overtime not started. maid={} holder={}",
                             shortId(maidId), holder.id());
-                    return new Acquisition(ScheduleRelief.Action.UNCHANGED, null, sleeping);
+                    return Acquisition.notStarted();
                 }
                 State created = new State(original, EnumSet.of(holder), OvertimeRecord.NO_DEADLINE);
                 STATES.put(maidId, created);
                 maid.setSchedule(MaidSchedule.ALL);
                 persist(maid, created);
+                touchFatigue(maid);
                 LOGGER.info("[overtime] started: maid={} holder={} from={} to={}",
                         shortId(maidId), holder.id(), original, MaidSchedule.ALL.name());
-                return new Acquisition(action, original, sleeping);
+                return new Acquisition(action, original, sleeping, false);
             }
             case REUSE -> {
                 state.holders.add(holder);
                 persist(maid, state);
+                touchFatigue(maid);
                 LOGGER.info("[overtime] already working overtime, holder joined: maid={} holder={} holders={} saved={}",
                         shortId(maidId), holder.id(), state.holders, state.originalSchedule);
-                return new Acquisition(action, state.originalSchedule, sleeping);
+                return new Acquisition(action, state.originalSchedule, sleeping, false);
             }
             default -> {
                 if (sleeping) {
@@ -154,7 +218,7 @@ public final class OvertimeManager {
                     LOGGER.info("[overtime] not started: disabled by config. maid={} holder={}",
                             shortId(maidId), holder.id());
                 }
-                return new Acquisition(action, null, sleeping);
+                return new Acquisition(action, null, sleeping, false);
             }
         }
     }
@@ -195,6 +259,11 @@ public final class OvertimeManager {
     private static boolean finish(UUID maidId, EntityMaid maid, State state, String reason) {
         STATES.remove(maidId);
         OvertimeNbt.clear(maid.getPersistentData());
+        OvertimeFatigue fatigue = FATIGUE.get(maidId);
+        if (fatigue != null) {
+            // 加班结束了，别让"正在要点心"的阶段留下来；累积的疲劳照旧，隔一会儿再加班接着算
+            fatigue.clearAsking();
+        }
         if (ScheduleRelief.decideRestore(state.originalSchedule, isScheduleAll(maid))
                 == ScheduleRelief.RestoreAction.EXTERNAL_CHANGE) {
             LOGGER.info("[overtime] ended, but the schedule was changed externally, not restoring. maid={} reason={} saved={} current={}",
@@ -226,6 +295,10 @@ public final class OvertimeManager {
         }
         STATES.remove(maidId);
         OvertimeNbt.clear(maid.getPersistentData());
+        OvertimeFatigue fatigue = FATIGUE.get(maidId);
+        if (fatigue != null) {
+            fatigue.clearAsking();
+        }
         LOGGER.info("[overtime] schedule was changed externally, overtime dropped (no restore). maid={} reason={} saved={} current={} holders={}",
                 shortId(maidId), reason, state.originalSchedule, currentScheduleName(maid), state.holders);
         return true;
@@ -239,7 +312,7 @@ public final class OvertimeManager {
      * <ul>
      *   <li>切到待命任务：活干完了，释放 {@link OvertimeHolder#WORK_TASK}；</li>
      *   <li>已经在加班：让这个任务也成为持有者并重新计时（指令结束后她不会立刻被打回休息）；</li>
-     *   <li>现在不是工作时间且没在加班：开始加班（睡觉中或配置关闭时不开始）。</li>
+     *   <li>现在不是工作时间且没在加班：开始加班（睡觉中、刚累坏了去休息或配置关闭时不开始）。</li>
      * </ul>
      *
      * @param inWorkTime 主模组此刻认为她是不是工作时间（{@code getScheduleDetail() == WORK}）
@@ -288,6 +361,208 @@ public final class OvertimeManager {
         return maid.getTask().getUid().equals(TaskManager.getIdleTask().getUid());
     }
 
+    // ===== 疲劳：累了 → 吃点心 / 向主人要 / 去休息 =====
+
+    private static void touchFatigue(EntityMaid maid) {
+        long now = maid.level().getGameTime();
+        OvertimeFatigue fatigue = FATIGUE.computeIfAbsent(maid.getUUID(), id -> new OvertimeFatigue());
+        if (fatigue.recovered(now)) {
+            fatigue.reset();
+        }
+        fatigue.touch(now);
+    }
+
+    /** 每个处理周期给一只正在加班的女仆推进一次疲劳。 */
+    private static void tickFatigue(MinecraftServer server, ServerLevel level, EntityMaid maid, State state) {
+        UUID maidId = maid.getUUID();
+        OvertimeFatigue fatigue = FATIGUE.computeIfAbsent(maidId, id -> new OvertimeFatigue());
+        if (!OvertimeConfig.SOFT_CAP_ENABLED.get()) {
+            // 中途被关掉：别让"正在要点心"的阶段卡住
+            fatigue.clearAsking();
+            return;
+        }
+        long now = level.getGameTime();
+        long capTicks = OvertimeConfig.SOFT_CAP_SECONDS.get() * 20L;
+        if (fatigue.isAsking()) {
+            tickAsking(server, level, maid, state, fatigue, now, capTicks);
+            return;
+        }
+        boolean rest = ScheduleTimeline.phaseAt(state.originalSchedule, level.getDayTime()) == ScheduleTimeline.Phase.REST;
+        if (fatigue.advance(now, TICK_INTERVAL, rest, capTicks) == OvertimeFatigue.Event.BECAME_TIRED) {
+            onTired(server, level, maid, state, fatigue, now, capTicks);
+        }
+    }
+
+    /** 刚刚累了：吃自己的点心 / 向主人要 / 只抱怨。 */
+    private static void onTired(MinecraftServer server, ServerLevel level, EntityMaid maid, State state,
+                                OvertimeFatigue fatigue, long now, long capTicks) {
+        UUID maidId = maid.getUUID();
+        boolean zh = PromptLang.isChinese(PromptLang.of(maid));
+        long seed = maid.getId() + now / TICK_INTERVAL;
+        TreatTable table = OvertimeConfig.treatTable();
+        if (OvertimeConfig.TREAT_ENABLED.get() && !table.isEmpty()) {
+            if (OvertimeConfig.EAT_OWN_TREATS.get()) {
+                int seconds = takeTreatFromBackpack(maid, table);
+                if (seconds > 0) {
+                    fatigue.treat(seconds * 20L);
+                    MaidSpeech.say(maid, OvertimeText.ateOwn(zh, seed));
+                    LOGGER.info("[overtime] tired, ate a treat from her backpack: maid={} extraSeconds={}",
+                            shortId(maidId), seconds);
+                    return;
+                }
+            }
+            ServerPlayer owner = ownerNearby(server, maid);
+            if (owner == null) {
+                LOGGER.info("[overtime] tired, but the owner is not around to ask: maid={}", shortId(maidId));
+                sendToRest(level, maid, state, fatigue, now, zh, seed);
+                return;
+            }
+            MaidSpeech.say(maid, OvertimeText.ask(zh, seed));
+            owner.sendSystemMessage(Component.translatable("chat.tlm_sincerely.overtime.treat_hint",
+                    maid.getName(), treatNames(table)).withStyle(ChatFormatting.GRAY));
+            MoveNavigation.walkToEntity(maid, owner, TREAT_APPROACH_DISTANCE);
+            LOGGER.info("[overtime] tired, asking the owner for a treat: maid={} waitSeconds={}",
+                    shortId(maidId), OvertimeConfig.TREAT_WAIT_SECONDS.get());
+            return;
+        }
+        // 点心功能关闭（或点心表是空的）：只抱怨一句，继续干，下次累是再过一个上限之后
+        if (OvertimeConfig.COMPLAIN_ENABLED.get()) {
+            MaidSpeech.say(maid, OvertimeText.complain(zh, seed));
+        }
+        fatigue.postpone(capTicks);
+        LOGGER.info("[overtime] tired, complaining only and keeping on: maid={} complained={}",
+                shortId(maidId), OvertimeConfig.COMPLAIN_ENABLED.get());
+    }
+
+    /** 正在向主人要点心：背包里出现了点心就吃，等太久或主人走远了就去休息，否则继续走向主人。 */
+    private static void tickAsking(MinecraftServer server, ServerLevel level, EntityMaid maid, State state,
+                                   OvertimeFatigue fatigue, long now, long capTicks) {
+        UUID maidId = maid.getUUID();
+        boolean zh = PromptLang.isChinese(PromptLang.of(maid));
+        long seed = maid.getId() + now / TICK_INTERVAL;
+        TreatTable table = OvertimeConfig.treatTable();
+        if (!OvertimeConfig.TREAT_ENABLED.get() || table.isEmpty()) {
+            // 点心功能中途被关掉：当作只抱怨，继续干
+            fatigue.postpone(capTicks);
+            return;
+        }
+        int seconds = takeTreatFromBackpack(maid, table);
+        if (seconds > 0) {
+            fatigue.treat(seconds * 20L);
+            MaidSpeech.say(maid, OvertimeText.thanks(zh, seed));
+            LOGGER.info("[overtime] got a treat in her backpack: maid={} extraSeconds={}", shortId(maidId), seconds);
+            return;
+        }
+        ServerPlayer owner = ownerNearby(server, maid);
+        if (owner == null || fatigue.askTimedOut(now, OvertimeConfig.TREAT_WAIT_SECONDS.get() * 20L)) {
+            LOGGER.info("[overtime] no treat came ({}): maid={}",
+                    owner == null ? "owner is not around" : "waited too long", shortId(maidId));
+            sendToRest(level, maid, state, fatigue, now, zh, seed);
+            return;
+        }
+        MoveNavigation.walkToEntity(maid, owner, TREAT_APPROACH_DISTANCE);
+    }
+
+    /**
+     * 主人用点心右键了正在要点心的女仆（由 {@code OvertimeTreatHandler} 调用）。
+     *
+     * @return 是否收下了（收下时已经从玩家手里扣掉一个）
+     */
+    public static boolean tryAcceptTreat(EntityMaid maid, ServerPlayer player, ItemStack stack) {
+        UUID maidId = maid.getUUID();
+        if (!isAsking(maidId) || !player.getUUID().equals(maid.getOwnerUUID()) || stack.isEmpty()) {
+            return false;
+        }
+        TreatTable table = OvertimeConfig.treatTable();
+        int seconds = table.secondsFor(itemId(stack));
+        if (seconds <= 0) {
+            return false;
+        }
+        if (!player.getAbilities().instabuild) {
+            stack.shrink(1);
+        }
+        OvertimeFatigue fatigue = FATIGUE.get(maidId);
+        fatigue.treat(seconds * 20L);
+        boolean zh = PromptLang.isChinese(PromptLang.of(maid));
+        MaidSpeech.say(maid, OvertimeText.thanks(zh, maid.getId() + maid.level().getGameTime() / TICK_INTERVAL));
+        LOGGER.info("[overtime] the owner handed her a treat: maid={} item={} extraSeconds={}",
+                shortId(maidId), itemId(stack), seconds);
+        return true;
+    }
+
+    /** 撑不住了：说一句，取消手头的指令，结束加班回去休息，并且这段休息时间内不能再加班。 */
+    private static void sendToRest(ServerLevel level, EntityMaid maid, State state, OvertimeFatigue fatigue,
+                                   long now, boolean zh, long seed) {
+        UUID maidId = maid.getUUID();
+        MaidSpeech.say(maid, OvertimeText.goRest(zh, seed));
+        long restEnds = now + ScheduleTimeline.ticksUntilPhaseChange(state.originalSchedule, level.getDayTime());
+        LOCKOUT.put(maidId, restEnds);
+        fatigue.reset();
+        // 手头的指令也一起取消：释放指令占着的那份加班，并恢复暂停跟随之类的状态
+        MoveDirectiveManager.cancelAndRestore(maidId, maid);
+        State remaining = STATES.get(maidId);
+        if (remaining != null) {
+            remaining.holders.clear();
+            finish(maidId, maid, remaining, "exhausted");
+        }
+        LOGGER.info("[overtime] exhausted, sent to rest until gameTime {}: maid={}", restEnds, shortId(maidId));
+    }
+
+    /** 主人是否在线、同维度、在喊话范围内；是就返回主人。 */
+    @Nullable
+    private static ServerPlayer ownerNearby(MinecraftServer server, EntityMaid maid) {
+        UUID ownerId = maid.getOwnerUUID();
+        if (ownerId == null) {
+            return null;
+        }
+        ServerPlayer owner = server.getPlayerList().getPlayer(ownerId);
+        if (owner == null || owner.level() != maid.level()) {
+            return null;
+        }
+        double range = MaidFinder.targetRange();
+        return maid.distanceToSqr(owner) <= range * range ? owner : null;
+    }
+
+    /** 从女仆背包里取走一个点心，返回它能多撑的秒数；没有点心返回 0。 */
+    private static int takeTreatFromBackpack(EntityMaid maid, TreatTable table) {
+        IItemHandler inventory = maid.getAvailableBackpackInv();
+        for (int slot = 0; slot < inventory.getSlots(); slot++) {
+            ItemStack stack = inventory.getStackInSlot(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            int seconds = table.secondsFor(itemId(stack));
+            if (seconds > 0 && !inventory.extractItem(slot, 1, false).isEmpty()) {
+                return seconds;
+            }
+        }
+        return 0;
+    }
+
+    private static String itemId(ItemStack stack) {
+        ResourceLocation key = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        return key == null ? "" : key.toString();
+    }
+
+    /** 点心表里所有物品的名字（可本地化的组件，用顿号隔开），发给主人看她想要什么。 */
+    private static MutableComponent treatNames(TreatTable table) {
+        MutableComponent names = Component.empty();
+        boolean first = true;
+        for (String id : table.itemIds()) {
+            ResourceLocation key = ResourceLocation.tryParse(id);
+            Item item = key == null ? null : ForgeRegistries.ITEMS.getValue(key);
+            if (item == null || item == Items.AIR) {
+                continue;
+            }
+            if (!first) {
+                names.append(Component.literal("、"));
+            }
+            names.append(item.getDescription());
+            first = false;
+        }
+        return names;
+    }
+
     // ===== tick / 加载 / 停止 =====
 
     /** 服务端 tick 驱动：每 {@value #TICK_INTERVAL} tick 处理一次。 */
@@ -311,6 +586,8 @@ public final class OvertimeManager {
             if (!maid.isAlive()) {
                 // 女仆死了：不会再加载，也没有日程需要恢复
                 STATES.remove(maidId);
+                FATIGUE.remove(maidId);
+                LOCKOUT.remove(maidId);
                 continue;
             }
             if (maid.isRemoved() || !(maid.level() instanceof ServerLevel level)) {
@@ -330,8 +607,12 @@ public final class OvertimeManager {
                         && level.getGameTime() >= state.taskDeadlineGameTick;
                 if (idle || expired) {
                     release(maidId, maid, OvertimeHolder.WORK_TASK, idle ? "task-idle" : "task-hold-expired");
+                    if (!STATES.containsKey(maidId)) {
+                        continue;
+                    }
                 }
             }
+            tickFatigue(server, level, maid, state);
         }
     }
 
@@ -385,10 +666,12 @@ public final class OvertimeManager {
 
     /**
      * 服务端停止时清空内存态。<b>不执行恢复动作</b>：此刻世界正在保存，原日程已经随标签持久化，
-     * 下次加载时会由 {@link #onMaidLoaded} 接着加班或交给指令恢复。
+     * 下次加载时会由 {@link #onMaidLoaded} 接着加班或交给指令恢复。疲劳与休息锁定也随之清零。
      */
     public static void clear() {
         STATES.clear();
+        FATIGUE.clear();
+        LOCKOUT.clear();
         tickCounter = 0;
     }
 

@@ -2,7 +2,6 @@ package com.github.tartaricacid.tlm_sincerely.ai.move;
 
 import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeHolder;
 import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeManager;
-import com.github.tartaricacid.tlm_sincerely.ai.overtime.ScheduleRelief;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
 import com.github.tartaricacid.touhoulittlemaid.entity.passive.EntityMaid;
 import org.jetbrains.annotations.Nullable;
@@ -68,7 +67,7 @@ public final class MoveOrderPlacer {
             overtime = OvertimeManager.acquire(maid, OvertimeHolder.ORDER, configAllows);
         } else {
             OvertimeManager.release(maidId, maid, OvertimeHolder.ORDER, "replaced-by-order-without-relief");
-            overtime = new OvertimeManager.Acquisition(ScheduleRelief.Action.UNCHANGED, null, false);
+            overtime = OvertimeManager.Acquisition.notStarted();
         }
         int maxActive = MoveConfig.MOVE_MAX_ACTIVE_PER_OWNER.get();
         if (MoveDirectiveManager.putOrder(maid, order, maxActive) == MoveOrders.PutResult.LIMIT_REACHED) {

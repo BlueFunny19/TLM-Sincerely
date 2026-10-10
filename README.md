@@ -113,6 +113,7 @@
 - 指令默认持续 10 分钟，最长默认 1 小时（均可配置）；玩家表示"一直这样"时模型会设为**永久**，永久指令会通过工具结果、模型上下文和女仆每 10 分钟一次的自言自语多重提醒玩家。
 - 移动类指令生效期间，只要女仆没在睡觉，就会让她"加班"：日程被临时改成全天工作，结束后恢复（`MoveForceWorkSchedule`）。
 - 玩家让女仆切换工作任务、而她本来不在工作时间时，也会让她加班（不再回答"现在不是工作时间"）；切到待命任务，或一段时间没有新指令后，日程自动恢复（`OvertimeTaskSwitchEnabled` / `OvertimeTaskHoldSeconds`）。加班期间你手动改日程会被视为接管，不会再改回去。
+- 在本该睡觉的时段里加班太久，女仆会累（`OvertimeSoftCapSeconds`，默认 180 秒）：她会走到你身边向你要点心（默认一个蛋糕多撑 300 秒，右键递给她或放进她的背包都行；她自己背包里有就直接吃）。等不到（默认 90 秒）她就会取消手头的指令回去休息，这段休息时间里不能再让她加班。点心表与各项开关见 `overtime` 分组（`OvertimeSoftCapEnabled`、`OvertimeTreatEnabled`、`OvertimeTreats`、`OvertimeEatOwnTreats`、`OvertimeTreatWaitSeconds`、`OvertimeComplainEnabled`）。
 - 路走不通时：距离不太远就传送到位，太远就放弃并让女仆说一句话（`MoveTeleportFallback` / `MoveTeleportMaxDistance`）。
 - 指令与暂停状态存在女仆自己的数据里，服务器重启后会继续生效或自动恢复；你在界面里手动改了模式，指令会自动终止，不会覆盖你的修改。
 - 相关配置在 `move` 分组与配置界面里：`MoveEnabled`、`MoveDefaultDurationSeconds`、`MoveMaxDurationSeconds`、`MoveMaxActivePerOwner`、`MoveAllowPermanent`、`MovePermanentReminderMinutes`、`MoveForceWorkSchedule`、`MoveTeleportFallback`、`MoveTeleportMaxDistance`；加班在 `overtime` 分组：`OvertimeTaskSwitchEnabled`、`OvertimeTaskHoldSeconds`。
