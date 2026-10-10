@@ -1,7 +1,9 @@
 package com.github.tartaricacid.tlm_sincerely.mixin;
 
 import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
+import com.github.tartaricacid.tlm_sincerely.ai.ReplyStylePrompts;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MemoryConfig;
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.ReplyConfig;
 import com.github.tartaricacid.touhoulittlemaid.ai.manager.entity.MaidAIChatManager;
 import com.github.tartaricacid.touhoulittlemaid.ai.manager.entity.summary.HistorySummaryManager;
 import com.github.tartaricacid.touhoulittlemaid.ai.service.llm.LLMMessage;
@@ -64,6 +66,12 @@ public abstract class MemoryGuidanceMixin {
         list.add(LLMMessage.systemChat(maid, routing.formatted(routingName, routingName)));
         if (MemoryConfig.ENABLED.get() && MemoryConfig.MEMORY_GUIDANCE.get()) {
             list.add(LLMMessage.systemChat(maid, PromptLang.pick(language, GUIDANCE_ZH, GUIDANCE_EN)));
+        }
+        // 回复节奏（分句 / 停顿标记）：两个开关都关着时不加，完全不增加 token
+        String replyStyle = ReplyStylePrompts.of(PromptLang.isChinese(language),
+                ReplyConfig.PAUSE_MARKER_ENABLED.get(), ReplyConfig.MODEL_SPLIT_ENABLED.get());
+        if (replyStyle != null) {
+            list.add(LLMMessage.systemChat(maid, replyStyle));
         }
         // 非中文、非英文：英文提示词末尾追加一句"改用该语言回复"
         String directive = PromptLang.replyDirective(language);

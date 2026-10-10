@@ -449,6 +449,25 @@ tlm_sincerely/
 | `AdventureSleepDurationTicks` | `4000` | 睡多久（1000 tick = 1 小时），1000~20000；其余时间都在工作 |
 | `AdventureVanillaBeds` | `true` | 附近没有女仆床时，冒险女仆是否睡原版的床（从不睡有人的床，始终优先女仆床） |
 
+### 8. 回复节奏（模型分句与 `<等待>` 停顿标记）
+
+- **两个彼此独立的开关，默认都关**：
+  - `ReplyModelSplitEnabled`：在女仆的系统提示词里加一小段（`ai/ReplyStylePrompts`），要求模型像聊天软件发消息那样把回复拆成几条短句、每条占一行（最多 4 行）；聊天栏本来就会把每一行显示成一条消息（`SplitReplyLines`，需保持开启）。
+  - `ReplyPauseMarkerEnabled`：告诉模型可以在两句话之间写 `<等待>` 表示停顿；聊天栏把标记之后的话晚一点显示。两个开关都关着时不加任何提示词，不增加 token。
+  - 提示词挂在 `MemoryGuidanceMixin` 已有的系统消息注入点（`MaidAIChatManager.buildMessage` 里 `appendSummaryMessage` 之前），与记忆说明、语言指令同处，所以聊天与 Self Talk 的自话共用。
+- **标记一律会被剥掉（兜底，不受开关影响）**：`LLMCallbackReplyMarkerMixin` 在 `LLMCallback.onSuccess` 的最开头处理 `ResponseChat`——聊天正文与 `---` 之后的语音正文里的标记都去掉，标记所在位置换成换行。因此气泡、语音（TTS）、聊天栏、聊天历史里永远不会出现标记，即使开关全关、模型自己乱写也一样。Self Talk 的自话 / 欢迎语回调在收尾里调用 `super.onSuccess`，同样经过这里（它的梦话 / 嘟囔不调父类，不会被提示这种写法）。
+- **标记的写法宽松**：`<等待>`、`< 等待 >`、`<等待/>`、`<等待 2>`、`<等待:1.5秒>`、`<wait>`、`<wait 2s>`（不分大小写）。带数字按数字停（夹在 0.3~10 秒之间），不带用 `ReplyPauseSeconds`（默认 1.5 秒）；连续标记的停顿相加；开头与结尾的标记没有意义，被忽略。一条回复里所有停顿加起来不超过 `ReplyPauseMaxTotalSeconds`（默认 12 秒），超出的不再往后拖。
+- **怎么错开显示**：解析时（可能在 LLM 响应线程）把"各段正文 + 各段之间的停顿"按女仆登记在 `PendingReplyPauses`；稍后 `ChatBubbleManager.addLLMChatText` 向主人发聊天消息时（`MaidChatBroadcastMixin`），按"同一只女仆 + 同样的正文（空白规整后比较）"取走登记，用 `ReplyPauses.plan` 排出计划：第一段马上显示，后面的段按累计停顿由 `ReplyDelivery`（`DelayedQueue`，每个服务端 tick 放行到点的）晚显示；每段里的换行仍按 `SplitReplyLines` 拆成多条。对不上、过期（30 秒）、只有一段时照常即时显示。晚显示的行在玩家下线、或女仆正在记忆整理（静默）时直接丢弃；服务端停止时队列清空。
+- **只错开聊天行**：气泡与语音仍是整段一次性出现（它们走主模组自己的路径，没有"分段"的概念），所以停顿主要在聊天栏里看得出来；开了语音时，聊天行的显示本身由主模组在语音就绪时触发，停顿从那一刻算起。
+- **配置段 `[reply]`**：
+
+| 配置项 | 默认值 | 说明 |
+|---|---|---|
+| `ReplyModelSplitEnabled` | `false` | 是否让模型把回复拆成几条短句、每条一行（提示词） |
+| `ReplyPauseMarkerEnabled` | `false` | 是否告诉模型可以写 `<等待>`，并按标记错开聊天行（标记无论如何都会被剥掉） |
+| `ReplyPauseSeconds` | `1.5` | 不带数字的标记停多久（秒，0.3~10） |
+| `ReplyPauseMaxTotalSeconds` | `12.0` | 单条回复所有停顿的累计上限（秒，1~60） |
+
 ---
 
 ## 四、注册命令总表

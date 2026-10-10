@@ -20,7 +20,8 @@
         "EntityMaidScheduleMixin",
         "ScheduleModeContextMixin",
         "SwitchScheduleToolMixin",
-        "AdventureBedTaskMixin"
+        "AdventureBedTaskMixin",
+        "LLMCallbackReplyMarkerMixin"
     ],
     "client": [
         "AbstractMaidContainerGuiMixin",

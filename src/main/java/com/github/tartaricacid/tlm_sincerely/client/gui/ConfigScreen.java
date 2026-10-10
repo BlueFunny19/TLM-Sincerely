@@ -6,6 +6,7 @@ import com.github.tartaricacid.tlm_sincerely.config.subconfig.MemoryConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.AdventureConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.OvertimeConfig;
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.ReplyConfig;
 import com.github.tartaricacid.tlm_sincerely.schedule.AdventureWindow;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.PriorityConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.RelayConfig;
@@ -721,6 +722,48 @@ public final class ConfigScreen {
                 .build());
 
         addon.addEntry(adventure.build());
+
+        SubCategoryBuilder reply = entryBuilder.startSubCategory(
+                Component.translatable("config.tlm_sincerely.reply"));
+        reply.setExpanded(true);
+
+        reply.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.reply.model_split_enabled"),
+                        ReplyConfig.MODEL_SPLIT_ENABLED.get())
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("config.tlm_sincerely.reply.model_split_enabled.tooltip"))
+                .setSaveConsumer(ReplyConfig.MODEL_SPLIT_ENABLED::set)
+                .build());
+
+        reply.add(entryBuilder.startBooleanToggle(
+                        Component.translatable("config.tlm_sincerely.reply.pause_marker_enabled"),
+                        ReplyConfig.PAUSE_MARKER_ENABLED.get())
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("config.tlm_sincerely.reply.pause_marker_enabled.tooltip"))
+                .setSaveConsumer(ReplyConfig.PAUSE_MARKER_ENABLED::set)
+                .build());
+
+        reply.add(entryBuilder.startDoubleField(
+                        Component.translatable("config.tlm_sincerely.reply.pause_seconds"),
+                        ReplyConfig.PAUSE_SECONDS.get())
+                .setDefaultValue(1.5D)
+                .setMin(0.3D)
+                .setMax(10.0D)
+                .setTooltip(Component.translatable("config.tlm_sincerely.reply.pause_seconds.tooltip"))
+                .setSaveConsumer(ReplyConfig.PAUSE_SECONDS::set)
+                .build());
+
+        reply.add(entryBuilder.startDoubleField(
+                        Component.translatable("config.tlm_sincerely.reply.pause_max_total_seconds"),
+                        ReplyConfig.PAUSE_MAX_TOTAL_SECONDS.get())
+                .setDefaultValue(12.0D)
+                .setMin(1.0D)
+                .setMax(60.0D)
+                .setTooltip(Component.translatable("config.tlm_sincerely.reply.pause_max_total_seconds.tooltip"))
+                .setSaveConsumer(ReplyConfig.PAUSE_MAX_TOTAL_SECONDS::set)
+                .build());
+
+        addon.addEntry(reply.build());
     }
 
     public static void register() {

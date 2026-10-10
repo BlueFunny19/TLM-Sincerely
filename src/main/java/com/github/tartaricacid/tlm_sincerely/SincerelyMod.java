@@ -3,6 +3,7 @@ package com.github.tartaricacid.tlm_sincerely;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveDirectiveManager;
 import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeManager;
 import com.github.tartaricacid.tlm_sincerely.ai.tool.TellMaidTool;
+import com.github.tartaricacid.tlm_sincerely.chatbar.ReplyDelivery;
 import com.github.tartaricacid.tlm_sincerely.command.AutoWorkCompatCommand;
 import com.github.tartaricacid.tlm_sincerely.command.AutoWorkPresetCommand;
 import com.github.tartaricacid.tlm_sincerely.command.ChatCommand;
@@ -111,6 +112,8 @@ public class SincerelyMod {
             MoveDirectiveManager.onServerTick(event.getServer());
             // 加班（日程临时改成全天工作）：到期 / 活干完 / 玩家接管的检查，每 20 tick 一次
             OvertimeManager.onServerTick(event.getServer());
+            // 回复里带停顿标记时，把晚显示的聊天行到点放出去
+            ReplyDelivery.onServerTick(event.getServer());
             AutoWorkCompatService compatService = AutoWorkCompatService.getOrNull(event.getServer());
             if (compatService != null) {
                 compatService.onServerTick();
@@ -168,6 +171,7 @@ public class SincerelyMod {
         TellMaidTool.clearRateLimitState();
         MoveDirectiveManager.clear();
         OvertimeManager.clear();
+        ReplyDelivery.clear();
     }
 
     @SubscribeEvent

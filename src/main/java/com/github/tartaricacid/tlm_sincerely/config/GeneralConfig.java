@@ -8,6 +8,7 @@ import com.github.tartaricacid.tlm_sincerely.config.subconfig.MoveConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.OvertimeConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.PriorityConfig;
 import com.github.tartaricacid.tlm_sincerely.config.subconfig.RelayConfig;
+import com.github.tartaricacid.tlm_sincerely.config.subconfig.ReplyConfig;
 import net.minecraftforge.common.ForgeConfigSpec;
 
 public final class GeneralConfig {
@@ -23,6 +24,7 @@ public final class GeneralConfig {
         MoveConfig.init(builder);
         OvertimeConfig.init(builder);
         AdventureConfig.init(builder);
+        ReplyConfig.init(builder);
         CONFIG = builder.build();
         return CONFIG;
     }

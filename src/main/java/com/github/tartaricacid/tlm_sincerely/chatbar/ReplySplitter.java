@@ -29,19 +29,41 @@ public final class ReplySplitter {
         if (fullText == null || fullText.isEmpty()) {
             return List.of(fullText == null ? "" : fullText);
         }
-        Matcher matcher = PREFIX.matcher(fullText);
-        String prefix = matcher.find() ? matcher.group(1) : "";
-        String body = fullText.substring(prefix.length());
+        String prefix = prefixOf(fullText);
+        List<String> lines = splitBody(prefix, fullText.substring(prefix.length()));
+        if (lines.size() <= 1) {
+            return List.of(fullText);
+        }
+        return lines;
+    }
 
+    /** 整条消息开头的 {@code <女仆名> } 前缀；认不出时返回空串。 */
+    public static String prefixOf(String fullText) {
+        if (fullText == null) {
+            return "";
+        }
+        Matcher matcher = PREFIX.matcher(fullText);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
+    /** 去掉前缀之后的正文。 */
+    public static String bodyOf(String fullText) {
+        return fullText == null ? "" : fullText.substring(prefixOf(fullText).length());
+    }
+
+    /**
+     * 把一段正文按换行拆开，每段前面加上 {@code prefix}；空段丢掉。正文没有可显示的内容时返回空列表。
+     */
+    public static List<String> splitBody(String prefix, String body) {
         List<String> lines = new ArrayList<>();
+        if (body == null) {
+            return lines;
+        }
         for (String part : body.split("\\R+")) {
             String trimmed = part.strip();
             if (!trimmed.isEmpty()) {
                 lines.add(prefix + trimmed);
             }
-        }
-        if (lines.size() <= 1) {
-            return List.of(fullText);
         }
         return lines;
     }

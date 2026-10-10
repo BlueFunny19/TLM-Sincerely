@@ -256,5 +256,14 @@
     "config.tlm_sincerely.adventure.sleep_duration_ticks": "Sleep length (ticks)",
     "config.tlm_sincerely.adventure.sleep_duration_ticks.tooltip": "How long the adventure schedule sleeps each day (1000 ticks = one hour, default 4000 = four hours, range 1000-20000). The rest of the day she works; there is no leisure time",
     "config.tlm_sincerely.adventure.vanilla_beds": "Adventure schedule uses vanilla beds",
-    "config.tlm_sincerely.adventure.vanilla_beds.tooltip": "When there is no maid bed nearby, a maid on the adventure schedule sleeps in the nearest unoccupied vanilla bed; a maid bed is always preferred when there is one"
+    "config.tlm_sincerely.adventure.vanilla_beds.tooltip": "When there is no maid bed nearby, a maid on the adventure schedule sleeps in the nearest unoccupied vanilla bed; a maid bed is always preferred when there is one",
+    "config.tlm_sincerely.reply": "Reply pacing",
+    "config.tlm_sincerely.reply.model_split_enabled": "Ask the model to split replies",
+    "config.tlm_sincerely.reply.model_split_enabled.tooltip": "Adds a short instruction to the maid's system prompt asking the model to break its reply into a few short sentences, one per line, like messages in a chat app; each line is shown as its own chat line (keep \"Show replies as separate lines\" on). Off by default; independent of the pause marker below",
+    "config.tlm_sincerely.reply.pause_marker_enabled": "Enable the pause marker <wait>",
+    "config.tlm_sincerely.reply.pause_marker_enabled.tooltip": "Tells the model it may write <等待> (or <wait>) between two sentences to pause there; the chat shows the part after it a moment later. The bubble and the voice still appear all at once, only the chat lines are staggered. Off by default. Whether or not this is on, markers in a reply are always removed and never appear in the bubble, the voice, the chat or the history",
+    "config.tlm_sincerely.reply.pause_seconds": "Default pause (s)",
+    "config.tlm_sincerely.reply.pause_seconds.tooltip": "How many seconds a pause marker without its own number holds the next part back (0.3-10)",
+    "config.tlm_sincerely.reply.pause_max_total_seconds": "Max total pause per reply (s)",
+    "config.tlm_sincerely.reply.pause_max_total_seconds.tooltip": "The most the pauses of one reply may add up to (1-60 seconds); markers beyond it no longer delay the rest"
 }

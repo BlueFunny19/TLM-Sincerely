@@ -629,3 +629,12 @@ Remove-Item run\config\tlm_sincerely* -Force
 - **时间表是纯逻辑**：`AdventureWindow`（起点、时长、跨天窗口、分段、时间文字）有单测；`AdventureSchedule.timetable()` 把分段转成原版 `Schedule`，配置变了就重建。`ScheduleTimeline` 也认 `ADVENTURE`，加班疲劳对冒险女仆同样成立。
 - **在真实服务端验证过混入**（这次第一次做，以后改混入都建议这样）：`sh gradlew runServer --no-daemon`（先在 `run/eula.txt` 写 `eula=true`；`run/` 已被 `.gitignore`）。临时加一个 `ServerStartedEvent` 监听，在里面 `new EntityMaid(level)`、设日程、读 `getScheduleDetail()`、`brain.updateActivityFromSchedule` 后看 `isActive`、存读 NBT、放一张原版床后反射调 `MaidBedTask.findBed/start`；全部符合预期后删掉这段临时代码。日志里 `Mixing XxxMixin ... into ...` 的 DEBUG 行能确认某个混入有没有套上（目标类被加载时才会出现）。注意 `pkill -f` 的模式要写成 `[f]orgeserveruserdev` 这种，否则会杀掉自己所在的 shell。
 - **验证状态**：云端 Gradle 全量构建通过；服务端实测——枚举为 `[DAY, NIGHT, ALL, ADVENTURE]`，各时刻 `getScheduleDetail()`（0/5000/16999 工作、17000/20999 休息、21000/23999 工作）与大脑活动一致，存读档后仍是 `ADVENTURE`，`findBed` 对冒险女仆找到了原版床、对白班女仆返回 `null`，`start` 后女仆处于睡眠、床被标成有人；`SwitchWorkTaskToolMixin`（T5a）也在这次启动里确认套上。**未做实机验证（需要客户端）**：日程按钮的图标与提示（`ScheduleButtonMixin`）、`ScheduleModeContextMixin` 在真实对话里的文字、女仆真的走到原版床前躺下、天亮后起床。
+
+### 2026-10-10 回复节奏 T8：`<等待>` 停顿标记与模型分句
+
+- **标记的剥除与错开显示分两处，因为中间隔着主模组的代码**：剥除在 `LLMCallback.onSuccess` 的开头（`LLMCallbackReplyMarkerMixin`，对 `ResponseChat` 的两个公开字段 `chatText` / `ttsText` 直接改），这样主模组写历史、气泡、TTS 看到的都是没有标记的正文；显示在稍后的 `ChatBubbleManager.addLLMChatText` 里发聊天消息的那次调用（`MaidChatBroadcastMixin` 的重定向）。两处不能直接传参，所以解析时把"各段正文 + 停顿"登记进 `PendingReplyPauses`（按女仆，线程安全，30 秒过期），发聊天栏时按"同一只女仆 + 规整过空白的同样正文"取走，对不上就当没登记、照常即时显示。
+- **剥除恒开、与开关无关**：模型自己乱写标记也不能露出来；开关只管"是否告诉模型可以写"（提示词）和"是否按标记错开聊天行"。标记所在位置换成换行，因为标记前后本来就是两句话。不动没有标记的文本（`strip` 对没有标记的输入原样返回同一个字符串），保证默认配置下行为和以前一模一样。
+- **纯逻辑都在 `chatbar/ReplyPauses`（解析、剥除、排显示计划）与 `DelayedQueue`（按 tick 到点执行）**，各有单测；运行期只有 `ReplyDelivery`（挂在 `SincerelyMod` 的服务端 tick 与停止事件上）和两个混入是胶水。显示计划里单个标记的停顿夹在 0.3~10 秒，一条回复的累计停顿再受 `ReplyPauseMaxTotalSeconds` 约束。
+- **提示词放在已有的系统消息注入点**（`MemoryGuidanceMixin`，与记忆说明、语言指令同处）；`ReplyStylePrompts.of` 在两个开关都关时返回 `null`，不加任何一个字。提示词是我写的、中英各一套，限定"一次回复最多 3 个、不放开头结尾、不代替省略号、只写在聊天文字里"。
+- **局限（已写进 WIKI）**：气泡与语音仍一次性出现，只有聊天行错开；开了语音时聊天行本身由主模组在语音就绪时触发，停顿从那一刻算起；晚显示的行在玩家下线或记忆整理期间丢弃；重启后队列清空。
+- **验证状态**：云端 Gradle 全量构建通过（279 个测试，新增 `ReplyPausesTest` / `DelayedQueueTest` / `PendingReplyPausesTest` / `ReplyStylePromptsTest`）；服务端实测：临时代码里 `new LLMCallback(...)` 后调 `onSuccess(new ResponseChat("…<等待>…<等待 2>…---ttsA<wait>ttsB"))`，聊天与语音正文里的标记都被换成了换行，三个相关混入（`LLMCallbackReplyMarkerMixin` / `MaidChatBroadcastMixin` / `MemoryGuidanceMixin`）都套上了（临时代码已删）。**未做实机验证（需要玩家与真实模型）**：聊天栏里错开显示的实际观感、模型是否真的按提示词分句 / 写标记、与语音同开时的时序。

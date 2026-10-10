@@ -256,5 +256,14 @@
     "config.tlm_sincerely.adventure.sleep_duration_ticks": "睡眠时长（tick）",
     "config.tlm_sincerely.adventure.sleep_duration_ticks.tooltip": "冒险日程每天睡多久（1000 tick = 1 小时，默认 4000 即 4 小时，范围 1000~20000）。其余时间都在工作，没有休闲时段",
     "config.tlm_sincerely.adventure.vanilla_beds": "冒险日程可睡原版的床",
-    "config.tlm_sincerely.adventure.vanilla_beds.tooltip": "附近没有女仆床时，冒险日程的女仆会去睡最近的一张没人睡的原版床；有女仆床时始终优先女仆床"
+    "config.tlm_sincerely.adventure.vanilla_beds.tooltip": "附近没有女仆床时，冒险日程的女仆会去睡最近的一张没人睡的原版床；有女仆床时始终优先女仆床",
+    "config.tlm_sincerely.reply": "回复节奏",
+    "config.tlm_sincerely.reply.model_split_enabled": "让模型分句",
+    "config.tlm_sincerely.reply.model_split_enabled.tooltip": "在女仆的系统提示词里加一小段，要求模型像聊天软件发消息那样把回复拆成几条短句、每条占一行；聊天栏会把每一行显示成一条消息（需要保持“回复分条显示”开启）。默认关闭，与下面的停顿标记互相独立",
+    "config.tlm_sincerely.reply.pause_marker_enabled": "启用停顿标记 <等待>",
+    "config.tlm_sincerely.reply.pause_marker_enabled.tooltip": "告诉模型可以在两句话之间写 <等待> 表示停顿，聊天栏会隔一会儿再显示标记后面的话。气泡与语音仍是一次性出现，只有聊天行错开。默认关闭。无论是否开启，回复里的标记都会被剥掉，不会出现在气泡、语音、聊天栏或历史里",
+    "config.tlm_sincerely.reply.pause_seconds": "默认停顿（秒）",
+    "config.tlm_sincerely.reply.pause_seconds.tooltip": "没有写秒数的 <等待> 标记让后面的话晚多少秒显示（0.3~10）",
+    "config.tlm_sincerely.reply.pause_max_total_seconds": "单条回复停顿上限（秒）",
+    "config.tlm_sincerely.reply.pause_max_total_seconds.tooltip": "一条回复里所有停顿加起来最多拖多久（1~60 秒），超出的标记不再往后拖"
 }
