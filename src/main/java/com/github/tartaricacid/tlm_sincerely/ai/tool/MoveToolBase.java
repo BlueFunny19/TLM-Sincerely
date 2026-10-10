@@ -1,6 +1,7 @@
 package com.github.tartaricacid.tlm_sincerely.ai.tool;
 
 import com.github.tartaricacid.tlm_sincerely.ai.PromptLang;
+import com.github.tartaricacid.tlm_sincerely.ai.move.MoveMath;
 import com.github.tartaricacid.tlm_sincerely.ai.move.MoveText;
 import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeManager;
 import com.github.tartaricacid.tlm_sincerely.ai.overtime.OvertimeText;
@@ -135,15 +136,24 @@ public abstract class MoveToolBase<R> implements ITool<R> {
         return null;
     }
 
-    /** 加上 {@code duration_seconds} 与 {@code permanent} 两个可选参数（限时 / 永久的指令都用）。 */
+    /**
+     * 加上 {@code temporary} 与 {@code duration_seconds} 两个可选参数。指令<b>默认一直生效</b>，
+     * 只有玩家明确要求临时才用它们。
+     */
     protected static void addDurationParameters(ObjectParameter root, boolean zh) {
         int maxDuration = MoveConfig.MOVE_MAX_DURATION_SECONDS.get();
+        root.addProperties("temporary", BoolParameter.create()
+                .setDescription(MoveText.temporaryDesc(zh, MoveConfig.MOVE_DEFAULT_DURATION_SECONDS.get())), false);
         root.addProperties("duration_seconds", IntegerParameter.create()
                 .setDescription(MoveText.durationDesc(zh, maxDuration))
                 .setMinimum(1)
                 .setMaximum(maxDuration), false);
-        root.addProperties("permanent", BoolParameter.create()
-                .setDescription(MoveText.permanentDesc(zh)), false);
+    }
+
+    /** 按配置决定这条指令的时效（默认一直生效，明确要求临时才限时）。 */
+    protected static MoveMath.Timing timingOf(boolean temporary, int durationSeconds) {
+        return MoveMath.resolveTiming(temporary, durationSeconds, MoveConfig.MOVE_ALLOW_PERMANENT.get(),
+                MoveConfig.MOVE_DEFAULT_DURATION_SECONDS.get(), MoveConfig.MOVE_MAX_DURATION_SECONDS.get());
     }
 
     /**

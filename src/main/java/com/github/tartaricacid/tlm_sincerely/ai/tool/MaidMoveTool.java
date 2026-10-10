@@ -39,7 +39,7 @@ public class MaidMoveTool extends MoveToolBase<MaidMoveTool.Result> {
             Codec.DOUBLE.optionalFieldOf("z", Double.NaN).forGetter(Result::z),
             Codec.DOUBLE.optionalFieldOf("distance", Double.NaN).forGetter(Result::distance),
             Codec.INT.optionalFieldOf("duration_seconds", -1).forGetter(Result::durationSeconds),
-            Codec.BOOL.optionalFieldOf("permanent", false).forGetter(Result::permanent)
+            Codec.BOOL.optionalFieldOf("temporary", false).forGetter(Result::temporary)
     ).apply(instance, Result::new));
 
     @Override
@@ -155,15 +155,10 @@ public class MaidMoveTool extends MoveToolBase<MaidMoveTool.Result> {
             return MoveText.cannotMoveNow(zh, ctx.maidName(), immobile[0], immobile[1]);
         }
 
-        boolean permanent = result.permanent();
-        if (permanent && !MoveConfig.MOVE_ALLOW_PERMANENT.get()) {
-            logRejected(ctx, "permanent-not-allowed", "action=" + action.id());
-            return MoveText.permanentNotAllowed(zh);
-        }
-
+        MoveMath.Timing timing = timingOf(result.temporary(), result.durationSeconds());
+        boolean permanent = timing.permanent();
+        int seconds = timing.seconds();
         double distance = MoveMath.clampDistance(result.distance(), action.defaultDistance());
-        int seconds = MoveMath.resolveDurationSeconds(result.durationSeconds(),
-                MoveConfig.MOVE_DEFAULT_DURATION_SECONDS.get(), MoveConfig.MOVE_MAX_DURATION_SECONDS.get());
         MoveOrderPlacer.Placement placement = MoveOrderPlacer.place(new MoveOrderPlacer.Request(
                 maid, ownerId, action, targetId, targetX, targetY, targetZ, distance, permanent, seconds));
         if (placement.limitReached()) {
@@ -182,6 +177,9 @@ public class MaidMoveTool extends MoveToolBase<MaidMoveTool.Result> {
         if (maid.isHomeModeEnable() && action != MoveAction.STAY) {
             message = message + " " + MoveText.homeModeNote(zh);
         }
+        if (timing.coercedToTimed()) {
+            message = message + " " + MoveText.coercedToTimedNote(zh, seconds);
+        }
         String scheduleNote = scheduleNote(zh, ctx.maidName(), placement.overtime());
         if (!scheduleNote.isEmpty()) {
             message = message + " " + scheduleNote;
@@ -190,12 +188,12 @@ public class MaidMoveTool extends MoveToolBase<MaidMoveTool.Result> {
     }
 
     /**
-     * {@code go_home}：不接受 duration_seconds / permanent（回家本来就是永久性改变），
+     * {@code go_home}：不接受 temporary / duration_seconds（回家本来就是永久性改变），
      * 有工作坐标就传送回工作坐标并打开居家模式，没有就返回 {@link MoveText#noWorkPos}。
      */
     private String goHome(Result result, Ctx ctx) {
-        if (result.permanent() || result.durationSeconds() > 0) {
-            logRejected(ctx, "unexpected-args", "action=go_home permanent=" + result.permanent()
+        if (result.temporary() || result.durationSeconds() > 0) {
+            logRejected(ctx, "unexpected-args", "action=go_home temporary=" + result.temporary()
                     + " durationSeconds=" + result.durationSeconds());
             return MoveText.goHomeIgnoredArgs(ctx.zh());
         }
@@ -208,6 +206,6 @@ public class MaidMoveTool extends MoveToolBase<MaidMoveTool.Result> {
 
     /** {@code x/y/z} 与 {@code duration_seconds} 缺省时由 codec 填入哨兵值（NaN / -1）。 */
     public record Result(String action, String target, double x, double y, double z,
-                         double distance, int durationSeconds, boolean permanent) {
+                         double distance, int durationSeconds, boolean temporary) {
     }
 }

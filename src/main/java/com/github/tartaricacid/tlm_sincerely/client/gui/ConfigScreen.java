@@ -532,7 +532,7 @@ public final class ConfigScreen {
         move.add(entryBuilder.startIntField(
                         Component.translatable("config.tlm_sincerely.move.default_duration_seconds"),
                         MoveConfig.MOVE_DEFAULT_DURATION_SECONDS.get())
-                .setDefaultValue(600)
+                .setDefaultValue(300)
                 .setMin(10)
                 .setMax(86400)
                 .setTooltip(Component.translatable("config.tlm_sincerely.move.default_duration_seconds.tooltip"))
@@ -570,7 +570,7 @@ public final class ConfigScreen {
         move.add(entryBuilder.startIntField(
                         Component.translatable("config.tlm_sincerely.move.permanent_reminder_minutes"),
                         MoveConfig.MOVE_PERMANENT_REMINDER_MINUTES.get())
-                .setDefaultValue(10)
+                .setDefaultValue(0)
                 .setMin(0)
                 .setMax(120)
                 .setTooltip(Component.translatable("config.tlm_sincerely.move.permanent_reminder_minutes.tooltip"))

@@ -30,7 +30,7 @@ public class MaidGuardTool extends MoveToolBase<MaidGuardTool.Result> {
             Codec.STRING.optionalFieldOf("target", "").forGetter(Result::target),
             Codec.DOUBLE.optionalFieldOf("distance", Double.NaN).forGetter(Result::distance),
             Codec.INT.optionalFieldOf("duration_seconds", -1).forGetter(Result::durationSeconds),
-            Codec.BOOL.optionalFieldOf("permanent", false).forGetter(Result::permanent)
+            Codec.BOOL.optionalFieldOf("temporary", false).forGetter(Result::temporary)
     ).apply(instance, Result::new));
 
     @Override
@@ -95,15 +95,10 @@ public class MaidGuardTool extends MoveToolBase<MaidGuardTool.Result> {
             return MoveText.cannotMoveNow(zh, ctx.maidName(), immobile[0], immobile[1]);
         }
 
-        boolean permanent = result.permanent();
-        if (permanent && !MoveConfig.MOVE_ALLOW_PERMANENT.get()) {
-            logRejected(ctx, "permanent-not-allowed", "");
-            return MoveText.permanentNotAllowed(zh);
-        }
-
+        MoveMath.Timing timing = timingOf(result.temporary(), result.durationSeconds());
+        boolean permanent = timing.permanent();
+        int seconds = timing.seconds();
         double distance = MoveMath.clampDistance(result.distance(), MoveAction.GUARD.defaultDistance());
-        int seconds = MoveMath.resolveDurationSeconds(result.durationSeconds(),
-                MoveConfig.MOVE_DEFAULT_DURATION_SECONDS.get(), MoveConfig.MOVE_MAX_DURATION_SECONDS.get());
         MoveOrderPlacer.Placement placement = MoveOrderPlacer.place(new MoveOrderPlacer.Request(
                 maid, ownerId, MoveAction.GUARD, resolution.targetId(), 0.0D, 0.0D, 0.0D, distance, permanent, seconds));
         if (placement.limitReached()) {
@@ -124,6 +119,9 @@ public class MaidGuardTool extends MoveToolBase<MaidGuardTool.Result> {
         if (!(maid.getTask() instanceof IAttackTask)) {
             message = message + " " + MoveText.guardNoCombatNote(zh);
         }
+        if (timing.coercedToTimed()) {
+            message = message + " " + MoveText.coercedToTimedNote(zh, seconds);
+        }
         String scheduleNote = scheduleNote(zh, ctx.maidName(), placement.overtime());
         if (!scheduleNote.isEmpty()) {
             message = message + " " + scheduleNote;
@@ -131,6 +129,6 @@ public class MaidGuardTool extends MoveToolBase<MaidGuardTool.Result> {
         return message;
     }
 
-    public record Result(String target, double distance, int durationSeconds, boolean permanent) {
+    public record Result(String target, double distance, int durationSeconds, boolean temporary) {
     }
 }

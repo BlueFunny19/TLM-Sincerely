@@ -28,8 +28,9 @@ public final class MoveText {
                 - stay：留在当前位置不动，也不再跟随主人（你原有的工作坐标会被暂时清掉，结束后恢复原样）。
                 - go_home：立刻传送回你自己的工作坐标，并进入居家模式。这是永久性的改变，没有时限，也不能用 maid_cancel 取消；想让你重新跟着主人，要用「切换跟随状态」工具。你没有设置工作坐标时无法使用。
                 target 填 me（或"我"）表示你的主人，也可以填同一主人名下另一只女仆的名字；不能填你自己。
-                指令默认持续 10 分钟，到了 duration_seconds 就自动结束；新指令（包括 maid_guard、maid_work_time）会覆盖旧指令。
-                如果玩家的意思是"一直这样""持续保持"（例如"在这儿一直等我"），把 permanent 设为 true，指令就不会超时，直到玩家让你取消；这时你必须在回复里明确告诉玩家：你会一直这样做，想让你停下只要跟你说一声。
+                指令默认一直生效，没有时限，直到玩家让你取消；新指令（包括 maid_guard、maid_work_time）会覆盖旧指令。
+                只有玩家明确要求"临时""一会儿""先这样 N 分钟"时，才把 temporary 设为 true（默认限时 5 分钟），或直接用 duration_seconds 给出时长，到时间指令就自动结束。
+                没有要求临时的指令，你必须在回复里明确告诉玩家：你会一直这样做，想让你停下只要跟你说一声。
                 只要你不是正在睡觉，指令生效期间你的日程都会被临时改成全天工作，指令结束后恢复原来的日程（go_home 除外）。
                 如果路走不通，距离不太远时系统会直接把你传送到位；距离太远就会放弃指令。无论哪种情况，系统都会替你在聊天栏里说一句话告诉玩家，你不用再重复说明。
                 """.trim() : """
@@ -43,8 +44,9 @@ public final class MoveText {
                 - stay: stay exactly where you are and stop following your owner (your work position is cleared temporarily and restored afterwards).
                 - go_home: teleport back to your own work position right away and enter home mode. This is a permanent change with no time limit and cannot be undone with maid_cancel; to make you follow your owner again the follow-state tool must be used. It does not work when you have no work position.
                 'target' is 'me' for your owner, or the name of another maid of the same owner; never yourself.
-                An order lasts 10 minutes by default and ends after 'duration_seconds'; a new order (including maid_guard and maid_work_time) replaces the old one.
-                If the player means "keep doing this" (for example "wait here for me"), set 'permanent' to true: the order never times out until the player tells you to cancel it. In that case you MUST tell the player in your reply that you will keep doing it and that they only need to tell you when to stop.
+                An order lasts until the player cancels it, with no time limit, by default; a new order (including maid_guard and maid_work_time) replaces the old one.
+                Only when the player explicitly asks for it to be temporary ("for a while", "just for now", "for 5 minutes") set 'temporary' to true (it then lasts 5 minutes by default) or give the length with 'duration_seconds'; the order ends by itself when the time is up.
+                For an order that was not asked to be temporary you MUST tell the player in your reply that you will keep doing it and that they only need to tell you when to stop.
                 Whenever you are not asleep your schedule is switched to "work around the clock" while the order is active, and your original schedule is restored when the order ends (except for go_home).
                 If the path is blocked, you are teleported into place when the distance is not too large; when it is too far the order is dropped. Either way the system says a line in chat on your behalf, so you do not need to explain it again.
                 """.trim();
@@ -57,8 +59,9 @@ public final class MoveText {
                 什么时候用：玩家要你保护、守护、护送某人（主人，或同一主人名下的另一只女仆）时。
                 什么时候不用：只是走近某人请用 maid_move 的 approach；取消守护请用 maid_cancel 工具。
                 target 填 me（或"我"）表示你的主人，也可以填同一主人名下另一只女仆的名字；不能填你自己。
-                守护默认持续 10 分钟，到了 duration_seconds 就自动结束；新指令（包括 maid_move、maid_work_time）会覆盖旧指令。
-                如果玩家的意思是"一直守着"（例如"一直守着澪"），把 permanent 设为 true，守护就不会超时，直到玩家让你取消；这时你必须在回复里明确告诉玩家：你会一直守着，想让你停下只要跟你说一声。
+                守护默认一直持续，没有时限，直到玩家让你取消；新指令（包括 maid_move、maid_work_time）会覆盖旧指令。
+                只有玩家明确要求"临时""守一会儿""守 N 分钟"时，才把 temporary 设为 true（默认限时 5 分钟），或直接用 duration_seconds 给出时长，到时间守护就自动结束。
+                没有要求临时的守护，你必须在回复里明确告诉玩家：你会一直守着，想让你停下只要跟你说一声。
                 只有在你当前的任务是战斗类任务时才会主动攻击，否则只会守在目标身边；需要战斗时，先用「切换工作任务」工具切换到战斗类任务。
                 只要你不是正在睡觉，守护期间你的日程都会被临时改成全天工作，结束后恢复原来的日程。
                 如果路走不通，距离不太远时系统会直接把你传送到位；距离太远就会放弃。无论哪种情况，系统都会替你在聊天栏里说一句话告诉玩家，你不用再重复说明。
@@ -67,8 +70,9 @@ public final class MoveText {
                 Use it when: the player asks you to protect, guard or escort someone (your owner, or another maid of the same owner).
                 Do not use it when: you only need to walk up to someone (use maid_move with 'approach'), or to stop guarding (use the maid_cancel tool).
                 'target' is 'me' for your owner, or the name of another maid of the same owner; never yourself.
-                Guarding lasts 10 minutes by default and ends after 'duration_seconds'; a new order (including maid_move and maid_work_time) replaces the old one.
-                If the player means "keep guarding" (for example "keep guarding Mio"), set 'permanent' to true: guarding never times out until the player tells you to cancel. In that case you MUST tell the player in your reply that you will keep guarding and that they only need to tell you when to stop.
+                Guarding lasts until the player cancels it, with no time limit, by default; a new order (including maid_move and maid_work_time) replaces the old one.
+                Only when the player explicitly asks for it to be temporary ("guard for a while", "guard for 5 minutes") set 'temporary' to true (it then lasts 5 minutes by default) or give the length with 'duration_seconds'; guarding ends by itself when the time is up.
+                For guarding that was not asked to be temporary you MUST tell the player in your reply that you will keep guarding and that they only need to tell you when to stop.
                 You only attack actively if your current task is a combat task; otherwise you just stay beside the target. If fighting is needed, first switch to a combat task with the work-task tool.
                 Whenever you are not asleep your schedule is switched to "work around the clock" while you guard, and your original schedule is restored afterwards.
                 If the path is blocked, you are teleported into place when the distance is not too large; when it is too far the order is dropped. Either way the system says a line in chat on your behalf, so you do not need to explain it again.
@@ -81,14 +85,16 @@ public final class MoveText {
                 不移动，只是把你的日程临时改成"全天工作"，这样夜里也能工作；之后再用「切换工作任务」工具让你去干活。
                 什么时候用：玩家让你"别休息了""今晚加班""现在就去干活"，而现在又不是你的工作时间时。
                 什么时候不用：你正在睡觉时不能用（会被拒绝，也不会改变任何状态）；日程本来就是全天工作时也不需要。想让你回到正常作息，用 maid_cancel 工具。
-                默认持续 10 分钟，到了 duration_seconds 就自动结束，日程恢复原样；新指令（包括 maid_move、maid_guard）会覆盖它。
-                如果玩家的意思是"一直这样"，把 permanent 设为 true，就不会超时，直到玩家让你取消；这时你必须在回复里明确告诉玩家：你会一直全天工作，想让你恢复作息只要跟你说一声。
+                默认一直全天工作，没有时限，直到玩家让你取消；新指令（包括 maid_move、maid_guard）会覆盖它。
+                只有玩家明确要求"今晚加班""加一会儿班""加 N 分钟"时，才把 temporary 设为 true（默认限时 5 分钟），或直接用 duration_seconds 给出时长，到时间日程就自动恢复原样。
+                没有要求临时的，你必须在回复里明确告诉玩家：你会一直全天工作，想让你恢复作息只要跟你说一声。
                 """.trim() : """
                 Do not move; only switch your schedule to "work around the clock" temporarily so that you can work at night as well. Afterwards use the work-task tool to start working.
                 Use it when: the player tells you to stop resting, to work overtime tonight, or to get to work right now while it is not your working time.
                 Do not use it when: you are asleep (it is refused and nothing changes), or your schedule is already work-around-the-clock. To go back to your normal routine use the maid_cancel tool.
-                It lasts 10 minutes by default and ends after 'duration_seconds', when your schedule is restored; a new order (including maid_move and maid_guard) replaces it.
-                If the player means "keep doing this", set 'permanent' to true: it never times out until the player tells you to cancel. In that case you MUST tell the player in your reply that you will keep working around the clock and that they only need to tell you when to go back to normal.
+                It lasts until the player cancels it, with no time limit, by default; a new order (including maid_move and maid_guard) replaces it.
+                Only when the player explicitly asks for overtime to be temporary ("work late tonight", "overtime for 5 minutes") set 'temporary' to true (it then lasts 5 minutes by default) or give the length with 'duration_seconds'; your schedule is restored by itself when the time is up.
+                For overtime that was not asked to be temporary you MUST tell the player in your reply that you will keep working around the clock and that they only need to tell you when to go back to normal.
                 """.trim();
     }
 
@@ -154,15 +160,14 @@ public final class MoveText {
 
     public static String durationDesc(boolean zh, int maxSeconds) {
         return zh
-                ? "指令持续的秒数，默认 600（10 分钟），最多 " + maxSeconds + "。到时间自动结束。想让指令一直持续请改用 permanent。"
-                : "How many seconds the order lasts. Default 600 (10 minutes), at most " + maxSeconds
-                + ". It ends automatically. To make it last indefinitely use 'permanent' instead.";
+                ? "临时指令持续的秒数，最多 " + maxSeconds + "，到时间自动结束。只有玩家明确要求临时、并且说了时长（例如\"守 3 分钟\"）时才传；不传就是一直生效（或 temporary 为 true 时用默认时长）。"
+                : "How many seconds a temporary order lasts, at most " + maxSeconds + "; it ends by itself when the time is up. Only pass it when the player explicitly asks for a temporary order and names a length (for example \"for 3 minutes\"); without it the order lasts until cancelled (or the default length when 'temporary' is true).";
     }
 
-    public static String permanentDesc(boolean zh) {
+    public static String temporaryDesc(boolean zh, int defaultSeconds) {
         return zh
-                ? "是否永久：true 表示指令没有时限，直到玩家让你取消。只有玩家明确表示要持续保持时才设为 true（例如\"一直跟着\"\"一直在这儿等我\"）；设为 true 时不要再传 duration_seconds。"
-                : "Whether the order is permanent: true means no time limit until the player tells you to cancel. Only set it when the player clearly wants it kept up (for example \"keep guarding\", \"wait here for me\"); do not pass duration_seconds together with it.";
+                ? "是否临时：默认不传，指令一直生效，直到玩家让你取消。只有玩家明确要求临时、却没说时长时（例如\"先这样一会儿\"\"暂时\"）才设为 true，此时限时 " + defaultSeconds + " 秒；说了具体时长就直接用 duration_seconds。"
+                : "Whether the order is temporary: leave it out and the order lasts until the player cancels it. Only set it to true when the player explicitly asks for a temporary order without naming a length (for example \"for a while\", \"for now\"); it then lasts " + defaultSeconds + " seconds. When the player names a length, use 'duration_seconds' instead.";
     }
 
     // ===== 工具返回给 LLM 的结果 =====
@@ -287,9 +292,11 @@ public final class MoveText {
                 : "(This order has no time limit: you MUST tell the player in your reply that you will keep doing it and that they only need to tell you when to stop.)";
     }
 
-    public static String permanentNotAllowed(boolean zh) {
-        return zh ? "本服务器不允许永久指令；请改用限时指令（设置 duration_seconds）。"
-                : "Permanent orders are not allowed on this server; use a timed order (set duration_seconds) instead.";
+    /** 服务器不允许无时限的指令，玩家又没要求临时：已改按默认时长限时，要让模型如实告诉玩家。 */
+    public static String coercedToTimedNote(boolean zh, int seconds) {
+        return zh ? "（本服务器不允许没有时限的指令，所以这条指令只持续 " + seconds + " 秒，到时间会自动结束；请在回复里如实告诉玩家。）"
+                : "(This server does not allow orders without a time limit, so this order only lasts " + seconds
+                + " seconds and ends by itself; tell the player so in your reply.)";
     }
 
     /** 永久指令成功生效。{@code detail} 是动作描述（如"守护澪"）。 */
@@ -392,8 +399,8 @@ public final class MoveText {
 
     /** go_home 不接受 duration_seconds / permanent 参数，模型却传了时的提示。 */
     public static String goHomeIgnoredArgs(boolean zh) {
-        return zh ? "go_home 不接受 duration_seconds / permanent 参数：回家本来就是永久性改变。请只在明确要「留在某处 / 走近某人」时才传这两个参数。"
-                : "go_home does not take duration_seconds / permanent: going home is already a permanent change. Only pass those for 'stay somewhere' or 'approach someone' orders.";
+        return zh ? "go_home 不接受 temporary / duration_seconds 参数：回家本来就是永久性改变。请只在玩家明确要求临时的「留在某处 / 走近某人」指令时才传这两个参数。"
+                : "go_home does not take temporary / duration_seconds: going home is already a permanent change. Only pass those for a 'stay somewhere' or 'approach someone' order the player explicitly asked to be temporary.";
     }
 
     /** 指令被丢弃时目标女仆已经不在了（例如她死了），给模型的一句说明。 */

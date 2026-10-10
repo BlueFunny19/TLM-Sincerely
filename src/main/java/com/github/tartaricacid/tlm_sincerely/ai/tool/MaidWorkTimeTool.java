@@ -30,7 +30,7 @@ public class MaidWorkTimeTool extends MoveToolBase<MaidWorkTimeTool.Result> {
 
     private static final Codec<Result> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.INT.optionalFieldOf("duration_seconds", -1).forGetter(Result::durationSeconds),
-            Codec.BOOL.optionalFieldOf("permanent", false).forGetter(Result::permanent)
+            Codec.BOOL.optionalFieldOf("temporary", false).forGetter(Result::temporary)
     ).apply(instance, Result::new));
 
     @Override
@@ -81,22 +81,19 @@ public class MaidWorkTimeTool extends MoveToolBase<MaidWorkTimeTool.Result> {
             logRejected(ctx, "tired-resting", "");
             return OvertimeText.tiredNote(zh, ctx.maidName());
         }
-        boolean permanent = result.permanent();
-        if (permanent && !MoveConfig.MOVE_ALLOW_PERMANENT.get()) {
-            logRejected(ctx, "permanent-not-allowed", "");
-            return MoveText.permanentNotAllowed(zh);
-        }
-        int seconds = MoveMath.resolveDurationSeconds(result.durationSeconds(),
-                MoveConfig.MOVE_DEFAULT_DURATION_SECONDS.get(), MoveConfig.MOVE_MAX_DURATION_SECONDS.get());
+        MoveMath.Timing timing = timingOf(result.temporary(), result.durationSeconds());
+        boolean permanent = timing.permanent();
+        int seconds = timing.seconds();
         // work_time 不暂停跟随（不碰居家模式与工作坐标），只放宽日程
         MoveOrderPlacer.Placement placement = MoveOrderPlacer.place(new MoveOrderPlacer.Request(
                 maid, ownerId, MoveAction.WORK_TIME, null, 0.0D, 0.0D, 0.0D, 0.0D, permanent, seconds));
         if (placement.limitReached()) {
             return MoveText.limitReached(zh, placement.maxActive());
         }
-        return MoveText.workTimeStarted(zh, ctx.maidName(), permanent, seconds);
+        String message = MoveText.workTimeStarted(zh, ctx.maidName(), permanent, seconds);
+        return timing.coercedToTimed() ? message + " " + MoveText.coercedToTimedNote(zh, seconds) : message;
     }
 
-    public record Result(int durationSeconds, boolean permanent) {
+    public record Result(int durationSeconds, boolean temporary) {
     }
 }

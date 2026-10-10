@@ -77,6 +77,29 @@ public final class MoveMath {
         return Math.max(1, Math.min(seconds, maxSeconds));
     }
 
+    /**
+     * 一条指令的时效：{@code permanent} 为 true 表示没有时限（直到玩家取消），否则 {@code seconds} 秒后自动结束。
+     * {@code coercedToTimed} 为 true 表示玩家并没有要求限时，只是服务器不允许无时限的指令，才被改成了限时。
+     */
+    public record Timing(boolean permanent, int seconds, boolean coercedToTimed) {
+    }
+
+    /**
+     * 指令时效的决定：<b>默认一直生效</b>，只有玩家明确要求临时（模型传了 {@code temporary = true}，
+     * 或者给了 {@code duration_seconds}）才限时；限时没给秒数时用默认值。服务器不允许无时限的指令
+     * （{@code allowPermanent = false}）时，没要求限时的指令也按默认时长限时，并标记 {@code coercedToTimed}
+     * 让调用方告诉模型。
+     */
+    public static Timing resolveTiming(boolean temporaryFlag, int requestedSeconds, boolean allowPermanent,
+                                       int defaultSeconds, int maxSeconds) {
+        boolean wantsTemporary = temporaryFlag || requestedSeconds > 0;
+        if (!wantsTemporary && allowPermanent) {
+            return new Timing(true, 0, false);
+        }
+        return new Timing(false, resolveDurationSeconds(requestedSeconds, defaultSeconds, maxSeconds),
+                !wantsTemporary);
+    }
+
     /** 距离是否已超过 distance + {@link #APPROACH_SLACK}（超过才需要重新下发靠近移动）。 */
     public static boolean needsApproach(double distanceSqr, double distance) {
         double limit = distance + APPROACH_SLACK;

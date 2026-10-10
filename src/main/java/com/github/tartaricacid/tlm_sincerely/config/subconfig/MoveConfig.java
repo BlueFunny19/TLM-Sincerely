@@ -27,8 +27,9 @@ public final class MoveConfig {
                 "Timed orders live in server memory, but the order, the state saved before suspending follow and the schedule saved before forcing work time are written to the maid entity so they survive a server restart");
         MOVE_ENABLED = builder.define("MoveEnabled", true);
 
-        builder.comment("duration_seconds used when the model does not pass one, in seconds (default 600 = 10 minutes)");
-        MOVE_DEFAULT_DURATION_SECONDS = builder.defineInRange("MoveDefaultDurationSeconds", 600, 10, 86400);
+        builder.comment("Orders now last until the player cancels them by default; only when the player explicitly asks for a temporary order (the model passes temporary=true or a duration_seconds) does an order end by itself",
+                "This is how long a temporary order lasts when the model gives no duration of its own, in seconds (default 300 = 5 minutes; it used to be 600 and apply to every order)");
+        MOVE_DEFAULT_DURATION_SECONDS = builder.defineInRange("MoveDefaultDurationSeconds", 300, 10, 86400);
 
         builder.comment("Upper bound of duration_seconds for a single movement order, in seconds",
                 "Requests longer than this are clamped; note the default changed from 300 to 3600");
@@ -38,13 +39,13 @@ public final class MoveConfig {
                 "Permanent orders occupy a slot of this budget as well");
         MOVE_MAX_ACTIVE_PER_OWNER = builder.defineInRange("MoveMaxActivePerOwner", 8, 1, 64);
 
-        builder.comment("Allow permanent orders (permanent=true, no time limit until the player cancels)",
-                "When disabled a request with permanent=true is refused with an explanation for the model");
+        builder.comment("Allow orders without a time limit (the default kind: they last until the player cancels)",
+                "When disabled every order is temporary: an order the player did not ask to be temporary is limited to MoveDefaultDurationSeconds and the model is told so in the tool result");
         MOVE_ALLOW_PERMANENT = builder.define("MoveAllowPermanent", true);
 
-        builder.comment("How often a permanent order makes the maid repeat a reminder, in minutes",
-                "0 disables reminders; a re-registered permanent order (after a server restart) restarts this timer from zero");
-        MOVE_PERMANENT_REMINDER_MINUTES = builder.defineInRange("MovePermanentReminderMinutes", 10, 0, 120);
+        builder.comment("How often an order without a time limit makes the maid repeat a reminder, in minutes",
+                "0 disables reminders (the default now that orders last until cancelled, so a reminder every few minutes would nag); a re-registered order (after a server restart) restarts this timer from zero");
+        MOVE_PERMANENT_REMINDER_MINUTES = builder.defineInRange("MovePermanentReminderMinutes", 0, 0, 120);
 
         builder.comment("Teleport the maid to the destination when she cannot walk there (path blocked / stuck).",
                 "When disabled, stuck orders keep retrying to walk and only write an INFO log, with no teleport and no line in chat");

@@ -156,6 +156,38 @@ class MoveMathTest {
         assertEquals(300, MoveMath.resolveDurationSeconds(-1, 600, 300));
     }
 
+    // ===== 指令时效：默认一直生效，明确要求临时才限时 =====
+
+    @Test
+    void resolveTiming_noRequestMeansPermanent() {
+        assertEquals(new MoveMath.Timing(true, 0, false), MoveMath.resolveTiming(false, -1, true, 300, 3600));
+        assertEquals(new MoveMath.Timing(true, 0, false), MoveMath.resolveTiming(false, 0, true, 300, 3600));
+    }
+
+    @Test
+    void resolveTiming_temporaryFlagAloneUsesTheDefaultDuration() {
+        assertEquals(new MoveMath.Timing(false, 300, false), MoveMath.resolveTiming(true, -1, true, 300, 3600));
+    }
+
+    @Test
+    void resolveTiming_aDurationAloneImpliesTemporary() {
+        assertEquals(new MoveMath.Timing(false, 90, false), MoveMath.resolveTiming(false, 90, true, 300, 3600));
+        assertEquals(new MoveMath.Timing(false, 90, false), MoveMath.resolveTiming(true, 90, true, 300, 3600));
+    }
+
+    @Test
+    void resolveTiming_durationIsClampedToTheMax() {
+        assertEquals(new MoveMath.Timing(false, 3600, false), MoveMath.resolveTiming(false, 99999, true, 300, 3600));
+        assertEquals(new MoveMath.Timing(false, 200, false), MoveMath.resolveTiming(true, -1, true, 300, 200));
+    }
+
+    @Test
+    void resolveTiming_whenPermanentIsNotAllowedEverythingIsTimedAndTheModelIsToldOnlyIfItDidNotAskForIt() {
+        assertEquals(new MoveMath.Timing(false, 300, true), MoveMath.resolveTiming(false, -1, false, 300, 3600));
+        assertEquals(new MoveMath.Timing(false, 300, false), MoveMath.resolveTiming(true, -1, false, 300, 3600));
+        assertEquals(new MoveMath.Timing(false, 60, false), MoveMath.resolveTiming(false, 60, false, 300, 3600));
+    }
+
     // ===== 可站立点采样 =====
 
     @Test

@@ -357,8 +357,9 @@ tlm_sincerely/
 - `maid_cancel`：取消当前指令。只有一个可选参数 `reason`（仅写入日志）：主 Mod 的工具都至少带一个参数，没有先例证明完全无参数的工具能被各家模型接口接受，所以不冒这个险。
 - 目标 `target` 可填 `me`（或「我」）表示主人，也可以填同一主人名下另一只女仆的名字；名字匹配规则与聊天栏一致（先精确、否则子串、多命中取最近），不能填自己。
 - 距离 `distance` 限制在 1~64 格：`approach` 默认 3、`retreat` 默认 16、`guard` 默认 5。
-- 指令是**限时**的：`duration_seconds` 缺省取 `MoveDefaultDurationSeconds`（默认 600 秒 = 10 分钟），上限由 `MoveMaxDurationSeconds` 决定（默认 3600 秒），到时自动结束。同一只女仆同时只有一条指令，新指令覆盖旧指令。
-- **永久指令（`permanent`）**：玩家明确表示“一直这样”（例如“一直守着澪”“在这儿一直等我”）时，模型会把 `permanent` 设为 `true`，指令不再超时，直到玩家让它取消；此时工具返回文字会明确要求模型在回复里告诉玩家“我会一直这样做，想停下只要说一声”。永久指令同样占用 `MoveMaxActivePerOwner` 的名额；`MoveAllowPermanent` 关闭时这类请求会被拒绝并给出改用限时指令的提示。永久指令期间女仆会每隔 `MovePermanentReminderMinutes` 分钟自己说一句“我还在……呢”提醒玩家（0 表示关闭）。
+- **指令默认一直生效（没有时限），直到玩家让她取消**；只有玩家明确要求临时时才限时：模型传 `temporary = true`（时长取 `MoveDefaultDurationSeconds`，默认 300 秒 = 5 分钟），或者直接给 `duration_seconds`（隐含临时，上限 `MoveMaxDurationSeconds`，默认 3600 秒），到时自动结束。同一只女仆同时只有一条指令，新指令覆盖旧指令。这套规则对 `maid_move`（`approach` / `retreat` / `goto` / `stay`）、`maid_guard`、`maid_work_time` 一视同仁（`go_home` 本来就是永久性改变，不接受这两个参数）。时效的判定是纯函数 `MoveMath.resolveTiming`，有单测。
+- **没有时限的指令**：工具返回文字会明确要求模型在回复里告诉玩家“我会一直这样做，想停下只要说一声”；同样占用 `MoveMaxActivePerOwner` 的名额。`MoveAllowPermanent` 关闭时所有指令都是临时的：玩家没要求临时的指令也只按默认时长限时，工具结果里会告知模型如实告诉玩家（`MoveText.coercedToTimedNote`），不再直接拒绝。女仆每隔 `MovePermanentReminderMinutes` 分钟自己说一句“我还在……呢”提醒玩家（现在默认 0 = 关闭，因为指令默认一直生效，定期提醒会变成唠叨；旧配置文件里已存的 10 不会自动迁移）。
+- **从旧版本升级**：工具参数 `permanent` 改名为 `temporary`（语义反过来：不传 = 一直生效）；`MoveDefaultDurationSeconds` 的默认值从 600 降为 300，并且只用于临时指令。
 - **`stay`（留在原地）**：把女仆临时切到居家模式并清掉工作坐标，使她不再跟随主人、原地待命；到期 / `cancel` / 其他指令替换时**精确恢复**她原来的状态（原本是跟随就恢复跟随，原本是居家 + 工作坐标就原样写回）。上面这些“不要跟着主人”的指令（还有 `goto`、`retreat`，以及目标不是主人本人的 `approach` / `guard`）都会在生效期间暂停跟随——因为主模组的 `MaidFollowOwnerTask` 会无条件把她拉回主人身边；目标就是主人的 `approach` / `guard` 不暂停跟随（本来就该跟着）。
 - **`go_home`（回家）**：只有在女仆**设有工作坐标**时可用（判定的是她的日程坐标 `SchedulePos.isConfigured()` / `getWorkPos()`，不是限制半径），没有就返回“没有工作坐标，没法回家”，不改变任何状态。有工作坐标时：先结束并恢复她当前暂停中的指令，在当前维度把工作坐标周围 ±4 格内找一个能站的位置传送过去（找不到就返回“附近找不到能站的地方”，状态不变），然后打开居家模式（工作坐标保持不变），并让女仆自己说一句“我回家啦”。这是**永久性改变**：不产生指令、不超时、不能用 `maid_cancel` 取消，要让她重新跟随请用主模组的跟随工具。`go_home` 不接受 `duration_seconds` / `permanent` 参数（传了会返回提示且什么都不做）。
 - **到期与提醒**：限时指令**自然到期**时女仆会说一句“……的时间到了，我恢复自由行动啦”（`cancel` / 被新指令替换 / 因故丢弃时不说）。永久指令的提醒由 `MovePermanentReminderMinutes` 控制。
@@ -394,8 +395,8 @@ tlm_sincerely/
 | `MoveDefaultDurationSeconds` | `600` | 模型没有传 `duration_seconds` 时使用的时长（秒，10~86400） |
 | `MoveMaxDurationSeconds` | `3600` | 单条指令 `duration_seconds` 的上限秒数（10~86400），超出时按此值截断。**旧版本默认值为 300，旧配置文件里已保存的旧值不会自动迁移** |
 | `MoveMaxActivePerOwner` | `8` | 同一主人名下全部女仆同时生效的指令条数上限（1~64），超出时新指令被拒绝并告知模型；永久指令同样占名额 |
-| `MoveAllowPermanent` | `true` | 是否允许 `permanent=true` 的永久指令；关闭后这类请求被拒绝并提示模型改用限时指令 |
-| `MovePermanentReminderMinutes` | `10` | 永久指令每隔多久让女仆自己说一句提醒（分钟，0~120，0 表示关闭）；重启后重新登记的永久指令从重启后重新计时 |
+| `MoveAllowPermanent` | `true` | 是否允许没有时限的指令（默认的那一种）；关闭后所有指令都是临时的：玩家没要求临时的指令也只按默认时长限时，并告知模型如实告诉玩家 |
+| `MovePermanentReminderMinutes` | `0` | 没有时限的指令每隔多久让女仆自己说一句提醒（分钟，0~120，0 表示关闭，默认关闭）；重启后重新登记的指令从重启后重新计时 |
 | `MoveTeleportFallback` | `true` | 卡住走不到目的地时是否直接传送（同一条指令最多 3 次、相邻两次至少间隔 5 秒）；关闭后继续尝试走路，只写 INFO 日志，不传送也不说话 |
 | `MoveTeleportMaxDistance` | `64` | 传送兜底的最大距离（格，8~256）：女仆到目的地的距离超过它就放弃指令（她会说明“太远了”），只有不超过时才传送过去 |
 | `MoveForceWorkSchedule` | `true` | 移动指令生效期间，只要女仆没在睡觉就让她加班（日程临时改成“全天工作”），指令结束后恢复原日程；关闭后除 `maid_work_time` 外都不再触发加班。你手动改日程会被视为接管，指令结束时不会把日程改回去 |
@@ -416,7 +417,7 @@ tlm_sincerely/
 
 #### 当前边界
 
-- **指令默认限时 10 分钟**：到时间自动结束并说一句到期提示，不会变成“永久跟随”。需要长期保持请让模型把 `permanent` 设为 `true`（受 `MoveAllowPermanent` 控制），需要长期跟随请用主模组的跟随工具。
+- **指令默认一直生效**：只有玩家明确要求临时才限时，到时间自动结束并说一句到期提示（受 `MoveAllowPermanent` 控制，关闭后一律限时）。需要长期跟随请用主模组的跟随工具。
 - **“精确恢复原状态”的语义**：`stay` / `goto` / `retreat` / 目标不是主人的 `approach` / `guard` 在生效期间会把女仆临时切成“居家 + 无工作坐标”。指令结束时本模组把**暂停前保存的**居家模式与工作坐标原样写回：原本是普通跟随 → 恢复成普通跟随；原本就是居家 + 工作坐标 → 恢复成居家 + 原工作坐标（不会被强行关掉居家模式）。若女仆不在场（区块卸载、被移除）则恢复记录保留在实体标签里，等她重新加载时再恢复；服务端停止时也不做恢复，交给下次加载。
 - **玩家改了模式就中止指令**：暂停期间如果玩家在女仆界面里、或用跟随工具把居家模式改了回去，该指令立即结束且**不再恢复**（避免把玩家刚改的设置覆盖回去），只写一条 INFO 日志。
 - **加班的边界**：只有“正在睡觉”一个条件会阻止加班（坐着的女仆在 `maid_work_time` 下照常加班；移动类指令本身仍然会先因“坐着 / 睡觉 / 骑乘 / 被拴住”被拒绝）；女仆本来就处于 `ALL`（全天工作）时不改也不保存，因此结束时不会把玩家的“全天工作”设置改掉。**你手动改日程（女仆界面或主模组 `switch_schedule` 工具）会中止恢复**：本模组把这次改动视为玩家接管，丢掉保存的原日程、不再写回，移动指令本身继续有效；`maid_work_time` 因为唯一作用已被覆盖会直接结束。加班只影响日程，不改居家模式与工作坐标（那是 `stay` 等指令的“暂停跟随”在管）。切换工作任务触发的加班目前不会因为“这个任务已经没活可干”而提前结束，只会在切到待命任务或 `OvertimeTaskHoldSeconds` 用完时结束。
@@ -521,9 +522,9 @@ tlm_sincerely/
 | `tlm_memory` | `remember`、`recall`、`forget`、`search`、`merge` | 女仆自主管理记忆 |
 | `run_command` | 由 LLM 生成命令 | 以主人身份执行 Minecraft 命令 |
 | `tell_maid` | 参数 `target`、`message` | 把一句话转告给同主人名下另一只女仆并请她回应；需安装并开启 Maid Self-Talk 的互聊，见「三、5. 女仆转告工具」 |
-| `maid_move` | `approach`、`retreat`、`goto`、`stay`、`go_home` | 限时地走近 / 远离 / 前往坐标 / 留在原地，或永久地回家，见「三、6. 移动指令」 |
-| `maid_guard` | 参数 `target`、`distance`、`duration_seconds`、`permanent` | 守在某人身边并攻击威胁他的敌对生物，见「三、6. 移动指令」 |
-| `maid_work_time` | 参数 `duration_seconds`、`permanent` | 把日程临时改成全天工作，见「三、6. 移动指令」 |
+| `maid_move` | `approach`、`retreat`、`goto`、`stay`、`go_home` | 走近 / 远离 / 前往坐标 / 留在原地（默认一直生效，玩家明确要求临时才限时），或永久地回家，见「三、6. 移动指令」 |
+| `maid_guard` | 参数 `target`、`distance`、`temporary`、`duration_seconds` | 守在某人身边并攻击威胁他的敌对生物（默认一直生效），见「三、6. 移动指令」 |
+| `maid_work_time` | 参数 `temporary`、`duration_seconds` | 把日程改成全天工作（默认一直生效，玩家明确要求临时才限时），见「三、6. 移动指令」 |
 | `maid_cancel` | 可选参数 `reason`（仅写日志） | 取消当前指令并恢复被临时改动的状态，见「三、6. 移动指令」 |
 
 `auto_work` 不能创建、选择、重命名或删除预设：预设库属于玩家客户端，服务端不可见。工具会明确拒绝这些操作，并引导玩家在女仆 GUI 中完成。旧的数字优先级 `set` 语义已不再支持。
